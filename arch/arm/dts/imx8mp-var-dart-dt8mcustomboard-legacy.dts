@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: (GPL-2.0+ OR MIT)
 /*
  * Copyright 2019 NXP
- * Copyright 2020-2022 Variscite Ltd.
+ * Copyright 2020-2023 Variscite Ltd.
  */
 
 #include "imx8mp-var-dart-dt8mcustomboard.dts"
@@ -20,7 +20,7 @@
         /delete-node/ gpio@21;
 };
 
-&fec {
-	/delete-property/ phy-reset-gpios;
+&ethphy1 {
+	/delete-property/ reset-gpios;
 	status = "disabled";
 };

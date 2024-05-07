@@ -1,8 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * Copyright 2018 NXP
  * Copyright 2019-2023 Variscite Ltd.
  *
- * SPDX-License-Identifier:	GPL-2.0+
  */
 
 #include <common.h>
@@ -48,16 +48,16 @@ static iomux_v3_cfg_t const wdog_pads[] = {
 
 #if CONFIG_IS_ENABLED(EFI_HAVE_CAPSULE_SUPPORT)
 struct efi_fw_image fw_images[] = {
-       {
-               .image_type_id = IMX_BOOT_IMAGE_GUID,
-               .fw_name = u"IMX8MN-EVK-RAW",
-               .image_index = 1,
-       },
+	{
+		.image_type_id = IMX_BOOT_IMAGE_GUID,
+		.fw_name = u"IMX8MN-EVK-RAW",
+		.image_index = 1,
+	},
 };
 
 struct efi_capsule_update_info update_info = {
-       .dfu_string = "mmc 2=flash-bin raw 0 0x2000 mmcpart 1",
-       .images = fw_images,
+	.dfu_string = "mmc 2=flash-bin raw 0 0x2000 mmcpart 1",
+	.images = fw_images,
 };
 
 u8 num_image_type_guids = ARRAY_SIZE(fw_images);
@@ -137,9 +137,8 @@ int board_ehci_usb_phy_mode(struct udevice *dev)
 
 int board_init(void)
 {
-	if (CONFIG_IS_ENABLED(FEC_MXC)) {
+	if (CONFIG_IS_ENABLED(FEC_MXC))
 		setup_fec();
-	}
 
 	return 0;
 }
@@ -170,10 +169,8 @@ int board_late_init(void)
 	struct var_carrier_eeprom carrier_eeprom;
 	char carrier_rev[CARRIER_REV_LEN] = {0};
 
-	if (CONFIG_IS_ENABLED(EXTCON_PTN5150)) {
+	if (CONFIG_IS_ENABLED(EXTCON_PTN5150))
 		extcon_ptn5150_setup(&usb_ptn5150);
-	}
-
 
 #ifdef CONFIG_FEC_MXC
 	var_setup_mac(ep);
@@ -182,10 +179,10 @@ int board_late_init(void)
 
 	som_rev = var_get_som_rev(ep);
 
-	printf("board_late_init: som_rev=%d\n", som_rev);
+	printf("%s: som_rev=%d\n", __func__, som_rev);
 
 	snprintf(sdram_size_str, SDRAM_SIZE_STR_LEN, "%d",
-		(int) (gd->ram_size / 1024 / 1024));
+		 (int)(gd->ram_size / 1024 / 1024));
 	env_set("sdram_size", sdram_size_str);
 
 	env_set("board_name", "VAR-SOM-MX8M-NANO");

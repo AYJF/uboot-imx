@@ -2,13 +2,12 @@
 /**
  * Driver for NXP PTN5150 CC LOGIC USB EXTCON support
  *
- * Copyright 2022 Variscite Ltd.
+ * Copyright 2023 Variscite Ltd.
  * Author: Nate Drude <nate.d@variscite.com>
  */
 #include <common.h>
 #include <i2c.h>
 #include <linux/bitfield.h>
-#include <dm.h>
 #include "extcon-ptn5150.h"
 
 int extcon_ptn5150_setup(struct extcon_ptn5150 *port)

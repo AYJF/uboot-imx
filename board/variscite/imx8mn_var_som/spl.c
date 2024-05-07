@@ -1,8 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * Copyright 2018-2019 NXP
  * Copyright 2019-2023 Variscite Ltd.
  *
- * SPDX-License-Identifier:	GPL-2.0+
  */
 
 #include <common.h>
@@ -73,7 +73,7 @@ static void spl_dram_init(void)
 
 #define USDHC_PAD_CTRL		(PAD_CTL_DSE6 | PAD_CTL_HYS | PAD_CTL_PUE | \
 				PAD_CTL_PE | PAD_CTL_FSEL2)
-#define USDHC_GPIO_PAD_CTRL 	(PAD_CTL_HYS | PAD_CTL_DSE1)
+#define USDHC_GPIO_PAD_CTRL		(PAD_CTL_HYS | PAD_CTL_DSE1)
 
 static iomux_v3_cfg_t const usdhc3_pads[] = {
 	IMX8MN_PAD_NAND_WE_B__USDHC3_CLK | MUX_PAD_CTRL(USDHC_PAD_CTRL),
@@ -114,13 +114,13 @@ int board_mmc_init(struct bd_info *bis)
 	 * mmc0                    USDHC1
 	 * mmc1                    USDHC2
 	 */
-	for (i = 0; i < CONFIG_SYS_FSL_USDHC_NUM; i++) {
+	for (i = 0; i < CFG_SYS_FSL_USDHC_NUM; i++) {
 		switch (i) {
 		case 0:
 			init_clk_usdhc(1);
 			usdhc_cfg[0].sdhc_clk = mxc_get_clock(MXC_ESDHC2_CLK);
-			imx_iomux_v3_setup_multiple_pads(
-				usdhc2_pads, ARRAY_SIZE(usdhc2_pads));
+			imx_iomux_v3_setup_multiple_pads(usdhc2_pads,
+							 ARRAY_SIZE(usdhc2_pads));
 			gpio_request(USDHC2_PWR_GPIO, "usdhc2_reset");
 			gpio_direction_output(USDHC2_PWR_GPIO, 0);
 			udelay(500);
@@ -129,12 +129,12 @@ int board_mmc_init(struct bd_info *bis)
 		case 1:
 			init_clk_usdhc(2);
 			usdhc_cfg[1].sdhc_clk = mxc_get_clock(MXC_ESDHC3_CLK);
-			imx_iomux_v3_setup_multiple_pads(
-				usdhc3_pads, ARRAY_SIZE(usdhc3_pads));
+			imx_iomux_v3_setup_multiple_pads(usdhc3_pads,
+							 ARRAY_SIZE(usdhc3_pads));
 			break;
 		default:
-			printf("Warning: you configured more USDHC controllers"
-				"(%d) than supported by the board\n", i + 1);
+			printf("Warning: you configured more USDHC controllers " \
+			       "(%d) than supported by the board\n", i + 1);
 			return -EINVAL;
 		}
 
@@ -216,20 +216,11 @@ void spl_board_init(void)
 
 	puts("Normal Boot\n");
 
-	if (IS_ENABLED(CONFIG_FSL_CAAM)) {
-		struct udevice *dev;
-		int ret;
-
-		ret = uclass_get_device_by_driver(UCLASS_MISC, DM_DRIVER_GET(caam_jr), &dev);
-		if (ret)
-			printf("Failed to initialize caam_jr: %d\n", ret);
-	}
-
+	arch_misc_init();
 
 	/* Copy EEPROM contents to DRAM */
 	memcpy(ep, &eeprom, sizeof(*ep));
 }
-
 
 #ifdef CONFIG_SPL_LOAD_FIT
 int board_fit_config_name_match(const char *name)
@@ -252,8 +243,6 @@ void board_init_f(ulong dummy)
 
 	timer_init();
 
-	preloader_console_init();
-
 	ret = spl_early_init();
 	if (ret) {
 		debug("spl_early_init() failed: %d\n", ret);
@@ -267,6 +256,8 @@ void board_init_f(ulong dummy)
 		printf("Failed to find clock node. Check device tree\n");
 		hang();
 	}
+
+	preloader_console_init();
 
 	enable_tzc380();
 
@@ -285,11 +276,12 @@ void board_init_f(ulong dummy)
 unsigned long spl_mmc_get_uboot_raw_sector(struct mmc *mmc)
 {
 	u32 boot_dev = spl_boot_device();
+
 	switch (boot_dev) {
-		case BOOT_DEVICE_MMC1:
-			return CONFIG_SYS_MMCSD_RAW_MODE_U_BOOT_SECTOR;
-		case BOOT_DEVICE_MMC2:
-			return CONFIG_SYS_MMCSD_RAW_MODE_U_BOOT_SECTOR - UBOOT_RAW_SECTOR_OFFSET;
+	case BOOT_DEVICE_MMC1:
+		return CONFIG_SYS_MMCSD_RAW_MODE_U_BOOT_SECTOR;
+	case BOOT_DEVICE_MMC2:
+		return CONFIG_SYS_MMCSD_RAW_MODE_U_BOOT_SECTOR - UBOOT_RAW_SECTOR_OFFSET;
 	}
 	return CONFIG_SYS_MMCSD_RAW_MODE_U_BOOT_SECTOR;
 }

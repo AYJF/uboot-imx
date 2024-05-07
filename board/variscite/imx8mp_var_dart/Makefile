@@ -1,6 +1,6 @@
 #
 # Copyright 2019 NXP
-# Copyright 2020-2022 Variscite Ltd.
+# Copyright 2020-2023 Variscite Ltd.
 #
 # SPDX-License-Identifier:      GPL-2.0+
 #

@@ -1,7 +1,13 @@
+// SPDX-License-Identifier: GPL-2.0+
+/*
+ * Copyright 2018 NXP
+ * Copyright 2018-2023 Variscite Ltd.
+ */
+
 #include "imx8mm-var-common-u-boot.dtsi"
 
 &pinctrl_uart4 {
-       u-boot,dm-spl;
+	u-boot,dm-spl;
 };
 
 &uart4 {
@@ -14,10 +20,6 @@
 		regulator-min-microvolt = <1800000>;
 		regulator-max-microvolt = <1800000>;
 	};
-};
-
-&fec1 {
-	phy-reset-gpios = <&gpio1 9 GPIO_ACTIVE_LOW>;
 };
 
 &gpio4 {

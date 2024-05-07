@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2018-2022 Variscite Ltd.
+ * Copyright (C) 2018-2023 Variscite Ltd.
  *
  * SPDX-License-Identifier: GPL-2.0+
  */

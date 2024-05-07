@@ -1,7 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
- * Copyright 2019-2022 Variscite Ltd.
+ * Copyright 2019-2023 Variscite Ltd.
  *
- * SPDX-License-Identifier:	GPL-2.0+
  */
 
 #include <common.h>

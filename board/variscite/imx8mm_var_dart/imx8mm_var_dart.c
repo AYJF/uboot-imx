@@ -1,8 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * Copyright 2018 NXP
- * Copyright 2018-2020 Variscite Ltd.
- *
- * SPDX-License-Identifier:	GPL-2.0+
+ * Copyright 2018-2023 Variscite Ltd.
  */
 
 #include <common.h>
@@ -33,9 +32,9 @@ extern int var_setup_mac(struct var_eeprom *eeprom);
 #define GPIO_PAD_CTRL	(PAD_CTL_DSE6 | PAD_CTL_FSEL1 | PAD_CTL_PUE | PAD_CTL_PE)
 
 #ifdef CONFIG_SPL_BUILD
-#define ID_GPIO 	IMX_GPIO_NR(2, 11)
+#define ID_GPIO		IMX_GPIO_NR(2, 11)
 
-static iomux_v3_cfg_t const id_pads[] = {
+static const iomux_v3_cfg_t id_pads[] = {
 	IMX8MM_PAD_SD1_STROBE_GPIO2_IO11 | MUX_PAD_CTRL(GPIO_PAD_CTRL),
 };
 
@@ -92,17 +91,17 @@ int var_get_som_rev(struct var_eeprom *ep)
 #define UART_PAD_CTRL	(PAD_CTL_DSE6 | PAD_CTL_FSEL1)
 #define WDOG_PAD_CTRL	(PAD_CTL_DSE6 | PAD_CTL_ODE | PAD_CTL_PUE | PAD_CTL_PE)
 
-static iomux_v3_cfg_t const uart1_pads[] = {
+static const iomux_v3_cfg_t uart1_pads[] = {
 	IMX8MM_PAD_UART1_RXD_UART1_RX | MUX_PAD_CTRL(UART_PAD_CTRL),
 	IMX8MM_PAD_UART1_TXD_UART1_TX | MUX_PAD_CTRL(UART_PAD_CTRL),
 };
 
-static iomux_v3_cfg_t const uart4_pads[] = {
+static const iomux_v3_cfg_t uart4_pads[] = {
 	IMX8MM_PAD_UART4_RXD_UART4_RX | MUX_PAD_CTRL(UART_PAD_CTRL),
 	IMX8MM_PAD_UART4_TXD_UART4_TX | MUX_PAD_CTRL(UART_PAD_CTRL),
 };
 
-static iomux_v3_cfg_t const wdog_pads[] = {
+static const iomux_v3_cfg_t wdog_pads[] = {
 	IMX8MM_PAD_GPIO1_IO02_WDOG1_WDOG_B  | MUX_PAD_CTRL(WDOG_PAD_CTRL),
 };
 
@@ -139,7 +138,7 @@ int board_early_init_f(void)
 	if (id == DART_MX8M_MINI) {
 		init_uart_clk(0);
 		imx_iomux_v3_setup_multiple_pads(uart1_pads, ARRAY_SIZE(uart1_pads));
-	}else if (id == VAR_SOM_MX8M_MINI) {
+	} else if (id == VAR_SOM_MX8M_MINI) {
 		init_uart_clk(3);
 		mxc_base = (struct mxc_uart *)UART4_BASE_ADDR;
 		imx_iomux_v3_setup_multiple_pads(uart4_pads, ARRAY_SIZE(uart4_pads));
@@ -176,7 +175,7 @@ int board_usb_init(int index, enum usb_init_type init)
 		/* Verify port is in proper mode */
 		int phy_mode = extcon_ptn5150_phy_mode(&usb_ptn5150);
 
-		//Only verify phy_mode if ptn5150 is initialized
+		/* Only verify phy_mode if ptn5150 is initialized */
 		if (phy_mode >= 0 && phy_mode != init)
 			return -ENODEV;
 	}
@@ -236,7 +235,7 @@ int board_late_init(void)
 
 	som_rev = var_get_som_rev(ep);
 
-	snprintf(sdram_size_str, SDRAM_SIZE_STR_LEN, "%d", (int) (gd->ram_size / 1024 / 1024));
+	snprintf(sdram_size_str, SDRAM_SIZE_STR_LEN, "%d", (int)(gd->ram_size / 1024 / 1024));
 	env_set("sdram_size", sdram_size_str);
 
 	if (id == VAR_SOM_MX8M_MINI) {
@@ -259,8 +258,7 @@ int board_late_init(void)
 		var_carrier_eeprom_read(CARRIER_EEPROM_BUS_SOM, CARRIER_EEPROM_ADDR, &carrier_eeprom);
 		var_carrier_eeprom_get_revision(&carrier_eeprom, carrier_rev, sizeof(carrier_rev));
 		env_set("carrier_rev", carrier_rev);
-	}
-	else if (id == DART_MX8M_MINI) {
+	} else if (id == DART_MX8M_MINI) {
 		env_set("board_name", "DART-MX8M-MINI");
 
 		var_carrier_eeprom_read(CARRIER_EEPROM_BUS_DART, CARRIER_EEPROM_ADDR, &carrier_eeprom);
@@ -281,7 +279,7 @@ int board_late_init(void)
 #define BACK_KEY IMX_GPIO_NR(4, 6)
 #define BACK_PAD_CTRL	(PAD_CTL_DSE6 | PAD_CTL_HYS | PAD_CTL_PUE | PAD_CTL_PE)
 
-static iomux_v3_cfg_t const back_pads[] = {
+static const iomux_v3_cfg_t back_pads[] = {
 	IMX8MM_PAD_SAI1_RXD4_GPIO4_IO6 | MUX_PAD_CTRL(BACK_PAD_CTRL),
 };
 

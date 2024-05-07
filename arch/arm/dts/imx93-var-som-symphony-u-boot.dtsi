@@ -122,10 +122,6 @@
 	u-boot,dm-spl;
 };
 
-&eqos {
-	compatible = "fsl,imx-eqos";
-};
-
 &ethphy0 {
 	reset-gpios = <&gpio1 7 GPIO_ACTIVE_LOW>;
 	reset-assert-us = <15000>;
@@ -148,6 +144,7 @@
 	u-boot,dm-spl;
 	/delete-property/ assigned-clocks;
 	/delete-property/ assigned-clock-rates;
+	/delete-property/ assigned-clock-parents;
 };
 
 &osc_32k {

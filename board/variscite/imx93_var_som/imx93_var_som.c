@@ -92,7 +92,7 @@ int board_ehci_usb_phy_mode(struct udevice *dev)
 
 int board_init(void)
 {
-	if (CONFIG_IS_ENABLED(DWC_ETH_QOS))
+	if (IS_ENABLED(CONFIG_DWC_ETH_QOS))
 		setup_eqos();
 
 	return 0;
@@ -127,8 +127,14 @@ int board_late_init(void)
 	var_carrier_eeprom_get_revision(&carrier_eeprom, carrier_rev, sizeof(carrier_rev));
 	env_set("carrier_rev", carrier_rev);
 
+	/* SoM Features */
+	if (ep->features & VAR_EEPROM_F_WBE)
+		env_set("som_has_wbe", "1");
+	else
+		env_set("som_has_wbe", "0");
+
 	/* SoM Rev ENV */
-	snprintf(som_rev, CARRIER_REV_LEN, "som_rev1%d", ep->somrev);
+	snprintf(som_rev, CARRIER_REV_LEN, "%ld.%ld", SOMREV_MAJOR(ep->somrev), SOMREV_MINOR(ep->somrev));
 	env_set("som_rev", som_rev);
 
 #ifdef CONFIG_ENV_IS_IN_MMC

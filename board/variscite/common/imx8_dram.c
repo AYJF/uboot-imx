@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0+
 /*
  * Copyright 2019 NXP
- * Copyright 2020-2022 Variscite Ltd.
+ * Copyright 2020-2023 Variscite Ltd.
  */
 
 #include <common.h>
@@ -30,7 +30,7 @@ static int get_dram_size(phys_size_t *size)
 #ifdef CONFIG_IMX8M_BOARD_INIT_DRAM
 
 #define PHYS_SDRAM_LOW_MAX_ADDR		0x100000000ULL
-#define PHYS_SDRAM_LOW_MAX_SIZE		(PHYS_SDRAM_LOW_MAX_ADDR - CONFIG_SYS_SDRAM_BASE)
+#define PHYS_SDRAM_LOW_MAX_SIZE		(PHYS_SDRAM_LOW_MAX_ADDR - CFG_SYS_SDRAM_BASE)
 
 int dram_init_banksize(void)
 {
@@ -186,7 +186,7 @@ phys_size_t get_effective_memsize(void)
 
 			/* Find the memory region runs the u-boot */
 			if (start >= PHYS_SDRAM_1 && start <= ((sc_faddr_t)PHYS_SDRAM_1 + phys_sdram_1_size)
-				&& (start <= CONFIG_SYS_TEXT_BASE && CONFIG_SYS_TEXT_BASE <= end)){
+				&& (start <= CONFIG_TEXT_BASE && CONFIG_TEXT_BASE <= end)){
 				if ((end + 1) <= ((sc_faddr_t)PHYS_SDRAM_1 + phys_sdram_1_size))
 					return (end - PHYS_SDRAM_1 + 1);
 				else

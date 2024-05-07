@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0+
 /*
  * Copyright 2017-2018 NXP
- * Copyright 2019-2022 Variscite Ltd.
+ * Copyright 2019-2023 Variscite Ltd.
  */
 
 /dts-v1/;
@@ -45,15 +45,32 @@
 	status = "okay";
 };
 
+&fec1 {
+	mdio {
+		ethphy1: ethernet-phy@5 {
+			compatible = "ethernet-phy-ieee802.3-c22";
+			reg = <5>;
+			at803x,eee-disabled;
+			at803x,vddio-1p8v;
+			adi,phy-mode-override = "rgmii";
+			reset-gpios = <&pca9534 5 GPIO_ACTIVE_LOW>;
+			reset-assert-us = <10000>;
+			reset-deassert-us = <20000>;
+
+			vddio1: vddio-regulator {
+				regulator-min-microvolt = <1800000>;
+				regulator-max-microvolt = <1800000>;
+			};
+		};
+	};
+};
+
 &fec2 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_fec2>;
 	phy-mode = "rgmii-rxid";
 	phy-handle = <&ethphy1>;
 	fsl,magic-packet;
-	phy-reset-gpios = <&pca9534 5 GPIO_ACTIVE_LOW>;
-	phy-reset-duration = <10>;
-	phy-reset-post-delay = <20>;
 	status = "okay";
 };
 
@@ -113,7 +130,7 @@
 			output-high;
 			line-name = "eth1_phy_pwr";
 		};
-        };
+	};
 };
 
 &iomuxc {

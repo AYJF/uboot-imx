@@ -1,8 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * Copyright 2018 NXP
- * Copyright 2022 Variscite Ltd.
+ * Copyright 2022-2023 Variscite Ltd.
  *
- * SPDX-License-Identifier:	GPL-2.0+
  */
 
 #include <common.h>
@@ -36,7 +36,6 @@ void spl_board_init(void)
 	struct udevice *dev;
 	struct var_eeprom *ep = VAR_EEPROM_DATA;
 	uclass_get_device_by_driver(UCLASS_MISC, DM_DRIVER_GET(imx8_scu), &dev);
-
 
 	uclass_find_first_device(UCLASS_MISC, &dev);
 

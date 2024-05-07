@@ -1,3 +1,8 @@
+/* SPDX-License-Identifier: GPL-2.0+ */
+/*
+ * Copyright 2023 Variscite Ltd.
+ */
+
 int var_get_som_rev(struct var_eeprom *ep);
 
 enum {

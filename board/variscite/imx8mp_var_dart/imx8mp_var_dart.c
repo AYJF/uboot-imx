@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: GPL-2.0+
 /*
  * Copyright 2019 NXP
- * Copyright 2020-2022 Variscite Ltd.
+ * Copyright 2020-2023 Variscite Ltd.
  */
-#define DEBUG
+
 #include <common.h>
 #include <efi_loader.h>
 #include <errno.h>
@@ -343,11 +343,11 @@ int board_init(void)
 		extcon_ptn5150_setup(&usb_ptn5150);
 	}
 
-	if (CONFIG_IS_ENABLED(FEC_MXC)) {
+	if (IS_ENABLED(CONFIG_FEC_MXC)) {
 		setup_fec();
 	}
 
-	if (CONFIG_IS_ENABLED(DWC_ETH_QOS)) {
+	if (IS_ENABLED(CONFIG_DWC_ETH_QOS)) {
 		setup_eqos();
 	}
 

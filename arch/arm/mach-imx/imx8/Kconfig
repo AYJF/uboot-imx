@@ -18,17 +18,6 @@ config IMX_LOAD_HDMI_FIMRWARE_TX
 	help
 	  This enable the hdmi tx firmware loading. It depends on the "hdp" command.
 
-config IMX_LOAD_HDMI_FIMRWARE
-	bool "Enable HDMI/DP firmware loading for Variscite Android"
-	depends on ARCH_IMX8 || VIDEO_IMX_HDP_LOAD
-	help
-	  This enable the hdmi tx firmware loading. It depends on the "hdp" command.
-
-config HDMI_FIRMWARE_PARTNO
-	depends on ANDROID_SUPPORT
-	hex "Parition Number in Hex for Firmware loading for Variscite Android"
-	default 11
-
 config IMX8
 	bool
 	select HAS_CAAM
@@ -43,19 +32,19 @@ config MU_BASE_SPL
 config IMX8QM
 	select IMX8
 	select SUPPORT_SPL
-	select SPL_RECOVER_DATA_SECTION
+	select SPL_RECOVER_DATA_SECTION if SPL
 	bool
 
 config IMX8QXP
 	select IMX8
 	select SUPPORT_SPL
-	select SPL_RECOVER_DATA_SECTION
+	select SPL_RECOVER_DATA_SECTION if SPL
 	bool
 
 config IMX8DXL
 	select IMX8
 	select SUPPORT_SPL
-	select SPL_RECOVER_DATA_SECTION
+	select SPL_RECOVER_DATA_SECTION if SPL
 	bool
 
 config SYS_SOC
@@ -92,22 +81,22 @@ config TARGET_APALIS_IMX8
 
 config TARGET_COLIBRI_IMX8X
 	bool "Support Colibri iMX8X module"
-	select BOARD_LATE_INIT
-	select IMX8QXP
-
-config TARGET_APALIS_IMX8X
-	bool "Support Apalis iMX8X module"
+	select BINMAN
 	select BOARD_LATE_INIT
 	select IMX8QXP
 
 config TARGET_DENEB
 	bool "Support i.MX8QXP Capricorn Deneb board"
+	select BINMAN
 	select BOARD_LATE_INIT
+	select FACTORYSET
 	select IMX8QXP
 
 config TARGET_GIEDI
 	bool "Support i.MX8QXP Capricorn Giedi board"
+	select BINMAN
 	select BOARD_LATE_INIT
+	select FACTORYSET
 	select IMX8QXP
 
 config TARGET_IMX8QM_MEK
@@ -131,12 +120,14 @@ config TARGET_IMX8QM_DDR4_VAL
 
 config TARGET_CONGA_QMX8
 	bool "Support congatec conga-QMX8 board"
+	select BINMAN
 	select BOARD_LATE_INIT
 	select SUPPORT_SPL
 	select IMX8QM
 
 config TARGET_IMX8QM_ROM7720_A1
 	bool "Support i.MX8QM ROM-7720-A1"
+	select BINMAN
 	select BOARD_LATE_INIT
 	select SUPPORT_SPL
 	select IMX8QM
@@ -150,6 +141,16 @@ config TARGET_IMX8QM_VAR_SOM
 
 config TARGET_IMX8QXP_MEK
 	bool "Support i.MX8QXP MEK board"
+	select BOARD_LATE_INIT
+	select IMX8QXP
+	select FSL_CAAM
+	select FSL_BLOB
+	select ARCH_MISC_INIT
+	select SPL_CRYPTO if SPL
+
+config TARGET_IMX8QXP_VAR_SOM
+	bool "Support Variscite VAR-SOM-MX8X board"
+	select IMX8_BOARD_INIT_DRAM
 	select BOARD_LATE_INIT
 	select IMX8QXP
 	select FSL_CAAM
@@ -205,7 +206,6 @@ config TARGET_IMX8DXL_EVK
 	bool "Support i.MX8DXL EVK board"
 	select BOARD_LATE_INIT
 	select IMX8DXL
-	select CRYPTO_SHA2_ARM64_CE
 	select FSL_CAAM
 	select FSL_BLOB
 	select ARCH_MISC_INIT
@@ -220,11 +220,10 @@ config TARGET_IMX8DXL_DDR3_EVK
 	select ARCH_MISC_INIT
 	select SPL_CRYPTO if SPL
 
-config TARGET_IMX8QXP_VAR_SOM
-	bool "Support Variscite VAR-SOM-MX8X board"
-	select IMX8_BOARD_INIT_DRAM
+config TARGET_IMX8DXL_ORANGEBOX
+	bool "Support i.MX8DXL OrangeBox board"
 	select BOARD_LATE_INIT
-	select IMX8QXP
+	select IMX8DXL
 	select FSL_CAAM
 	select FSL_BLOB
 	select ARCH_MISC_INIT
@@ -237,15 +236,21 @@ source "board/freescale/imx8qxp_mek/Kconfig"
 source "board/congatec/cgtqmx8/Kconfig"
 source "board/freescale/imx8qm_val/Kconfig"
 source "board/freescale/imx8qxp_val/Kconfig"
+source "board/variscite/imx8qxp_var_som/Kconfig"
 source "board/freescale/imx8dxl_phantom_mek/Kconfig"
 source "board/freescale/imx8dxl_evk/Kconfig"
+source "board/freescale/imx8dxl_orangebox/Kconfig"
 source "board/advantech/imx8qm_rom7720_a1/Kconfig"
 source "board/toradex/apalis-imx8/Kconfig"
 source "board/toradex/colibri-imx8x/Kconfig"
-source "board/toradex/apalis-imx8x/Kconfig"
 source "board/siemens/capricorn/Kconfig"
 source "board/variscite/imx8qm_var_som/Kconfig"
-source "board/variscite/imx8qxp_var_som/Kconfig"
+
+config SKIP_RESOURCE_CHECKING
+	bool "Skip resource owner checking to kernel FDT nodes"
+	help
+	  By default the kernel FDT nodes are checked if belong to current partition.
+	  Set the config to skip this checking.
 
 config IMX_SNVS_SEC_SC
 	bool "Support SNVS configuration"

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * Copyright 2018-2019 NXP
  * Copyright 2019-2023 Variscite Ltd.
@@ -40,22 +41,6 @@
 	};
 };
 
-&ddrc {
-	operating-points-v2 = <&ddrc_opp_table>;
-
-	ddrc_opp_table: opp-table {
-		compatible = "operating-points-v2";
-
-		opp-266M {
-			opp-hz = /bits/ 64 <266500000>;
-		};
-
-		opp-600M {
-			opp-hz = /bits/ 64 <600000000>;
-		};
-	};
-};
-
 &fec1 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_fec1>;
@@ -63,9 +48,6 @@
 	phy-handle = <&ethphy0>;
 	fsl,magic-packet;
 	phy-supply = <&reg_eth_phy>;
-	phy-reset-gpios = <&gpio1 9 GPIO_ACTIVE_LOW>;
-	phy-reset-duration = <10>;
-	phy-reset-post-delay = <20>;
 	status = "okay";
 
 	mdio {
@@ -76,6 +58,9 @@
 			compatible = "ethernet-phy-ieee802.3-c22";
 			reg = <4>;
 			vddio-supply = <&vddio>;
+			reset-gpios = <&gpio1 9 GPIO_ACTIVE_LOW>;
+			reset-assert-us = <10000>;
+			reset-deassert-us = <20000>;
 
 			vddio: vddio-regulator {
 				regulator-min-microvolt = <1800000>;
@@ -105,7 +90,7 @@
 			MX8MN_IOMUXC_ENET_RX_CTL_ENET1_RGMII_RX_CTL	0x91
 			MX8MN_IOMUXC_ENET_TX_CTL_ENET1_RGMII_TX_CTL	0x1f
 			MX8MN_IOMUXC_GPIO1_IO09_GPIO1_IO9		0x19
-			MX8MN_IOMUXC_SD1_DATA7_GPIO2_IO9 		0x41
+			MX8MN_IOMUXC_SD1_DATA7_GPIO2_IO9		0x41
 		>;
 	};
 
@@ -116,7 +101,7 @@
 		>;
 	};
 
-	pinctrl_i2c1_gpio: i2c1grp-gpio {
+	pinctrl_i2c1_gpio: i2c1gpiogrp {
 		fsl,pins = <
 			MX8MN_IOMUXC_I2C1_SCL_GPIO5_IO14		0x1c3
 			MX8MN_IOMUXC_I2C1_SDA_GPIO5_IO15		0x1c3
@@ -130,7 +115,7 @@
 		>;
 	};
 
-	pinctrl_i2c3_gpio: i2c3grp-gpio {
+	pinctrl_i2c3_gpio: i2c3gpiogrp {
 		fsl,pins = <
 			MX8MN_IOMUXC_I2C3_SCL_GPIO5_IO18		0x1c3
 			MX8MN_IOMUXC_I2C3_SDA_GPIO5_IO19		0x1c3
@@ -155,7 +140,7 @@
 			MX8MN_IOMUXC_NAND_CE2_B_USDHC3_DATA5		0x1d0
 			MX8MN_IOMUXC_NAND_CE3_B_USDHC3_DATA6		0x1d0
 			MX8MN_IOMUXC_NAND_CLE_USDHC3_DATA7		0x1d0
-			MX8MN_IOMUXC_NAND_CE1_B_USDHC3_STROBE 		0x190
+			MX8MN_IOMUXC_NAND_CE1_B_USDHC3_STROBE		0x190
 		>;
 	};
 
@@ -171,7 +156,7 @@
 			MX8MN_IOMUXC_NAND_CE2_B_USDHC3_DATA5		0x1d4
 			MX8MN_IOMUXC_NAND_CE3_B_USDHC3_DATA6		0x1d4
 			MX8MN_IOMUXC_NAND_CLE_USDHC3_DATA7		0x1d4
-			MX8MN_IOMUXC_NAND_CE1_B_USDHC3_STROBE 		0x194
+			MX8MN_IOMUXC_NAND_CE1_B_USDHC3_STROBE		0x194
 		>;
 	};
 
@@ -187,7 +172,7 @@
 			MX8MN_IOMUXC_NAND_CE2_B_USDHC3_DATA5		0x1d6
 			MX8MN_IOMUXC_NAND_CE3_B_USDHC3_DATA6		0x1d6
 			MX8MN_IOMUXC_NAND_CLE_USDHC3_DATA7		0x1d6
-			MX8MN_IOMUXC_NAND_CE1_B_USDHC3_STROBE 		0x196
+			MX8MN_IOMUXC_NAND_CE1_B_USDHC3_STROBE		0x196
 		>;
 	};
 

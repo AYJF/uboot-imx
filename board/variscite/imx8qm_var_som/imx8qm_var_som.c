@@ -1,8 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * Copyright 2017-2018 NXP
- * Copyright 2019-2022 Variscite Ltd.
+ * Copyright 2019-2023 Variscite Ltd.
  *
- * SPDX-License-Identifier:	GPL-2.0+
  */
 #include <common.h>
 #include <malloc.h>
@@ -126,7 +126,7 @@ void board_quiesce_devices(void)
 void reset_cpu(void)
 {
 	sc_pm_reboot(-1, SC_PM_RESET_TYPE_COLD);
-	while(1);
+	while (1);
 }
 
 #ifdef CONFIG_OF_BOARD_SETUP
@@ -144,7 +144,6 @@ int board_late_init(void)
 	int ret;
 
 	if (!var_eeprom_is_valid(ep)) {
-
 		ret = var_eeprom_read_header(&eeprom);
 		if (ret) {
 			printf("%s EEPROM read failed.\n", __func__);
@@ -153,7 +152,7 @@ int board_late_init(void)
 		memcpy(ep, &eeprom, sizeof(*ep));
 	}
 
-	if(ep->features & VAR_EEPROM_F_WIFI) {
+	if (ep->features & VAR_EEPROM_F_WIFI) {
 		env_set("som_wifi", "yes");
 	} else {
 		env_set("som_wifi", "no");
@@ -191,39 +190,23 @@ int board_late_init(void)
 
 #ifdef CONFIG_IMX_LOAD_HDMI_FIMRWARE
 	char command[256];
-#ifdef CONFIG_ANDROID_SUPPORT
-	char fw_folder[] = "hdp";
-#else
 	char fw_folder[] = "firmware/hdp";
-#endif
 	char *hdp_file = env_get("hdp_file");
 	char *hdprx_file = env_get("hdprx_file");
 	u32 dev_no = mmc_get_env_dev();
-#ifdef CONFIG_HDMI_FIRMWARE_PARTNO
-	u32 part_no = CONFIG_HDMI_FIRMWARE_PARTNO;
-#else
 	u32 part_no = 10;
-#endif
 
 	sprintf(command, "load mmc %x:%x 0x%x %s/%s", dev_no, part_no,
-			 IMX_HDMI_FIRMWARE_LOAD_ADDR,
-			 fw_folder, hdp_file);
-	ret = run_command(command, 0);
-	if (ret) {
-		/*try vendor*/
-		part_no = 10;
-		sprintf(command, "load mmc %x:%x 0x%x %s/%s", dev_no, part_no,
-				 IMX_HDMI_FIRMWARE_LOAD_ADDR,
-				 fw_folder, hdp_file);
-		ret = run_command(command, 0);
-	}
+			IMX_HDMI_FIRMWARE_LOAD_ADDR,
+			fw_folder, hdp_file);
+	run_command(command, 0);
 
 	sprintf(command, "hdp load 0x%x", IMX_HDMI_FIRMWARE_LOAD_ADDR);
 	run_command(command, 0);
 
 	sprintf(command, "load mmc %x:%x 0x%x %s/%s", dev_no, part_no,
-			 IMX_HDMI_FIRMWARE_LOAD_ADDR + IMX_HDMITX_FIRMWARE_SIZE,
-			 fw_folder, hdprx_file);
+			IMX_HDMI_FIRMWARE_LOAD_ADDR + IMX_HDMITX_FIRMWARE_SIZE,
+			fw_folder, hdprx_file);
 	run_command(command, 0);
 
 	sprintf(command, "hdprx load 0x%x",

@@ -1,7 +1,7 @@
+/* SPDX-License-Identifier: GPL-2.0+ */
 /*
- * Copyright 2019-2022 Variscite Ltd.
+ * Copyright 2019-2023 Variscite Ltd.
  *
- * SPDX-License-Identifier:     GPL-2.0+
  */
 
 #ifndef __IMX8QM_VAR_SOM_H
@@ -12,37 +12,23 @@
 #include <asm/arch/imx-regs.h>
 #include "imx_env.h"
 
-#define CONFIG_SYS_BOOTM_LEN		(64 * SZ_1M)
-
 #ifdef CONFIG_SPL_BUILD
-#define CONFIG_SPL_MAX_SIZE				(192 * 1024)
-#define CONFIG_SYS_MONITOR_LEN				(1024 * 1024)
 
 /*
  * 0x08081000 - 0x08180FFF is for m4_0 xip image,
  * 0x08181000 - 0x008280FFF is for m4_1 xip image
-  * So 3rd container image may start from 0x8281000
+ * So 3rd container image may start from 0x8281000
  */
-#define CONFIG_SYS_UBOOT_BASE 0x08281000
+#define CFG_SYS_UBOOT_BASE 0x08281000
 
-#define CONFIG_SPL_STACK		0x013fff0
-#define CONFIG_SPL_BSS_START_ADDR      0x00130000
-#define CONFIG_SPL_BSS_MAX_SIZE		0x1000	/* 4 KB */
-#define CONFIG_SYS_SPL_MALLOC_SIZE     0x80000	/* 512 KB */
-#define CONFIG_MALLOC_F_ADDR		0x00138000
-
-#define CONFIG_SPL_RAW_IMAGE_ARM_TRUSTED_FIRMWARE
-
-#define CONFIG_SPL_ABORT_ON_RAW_IMAGE
+#define CFG_MALLOC_F_ADDR		0x00138000
 #endif
 
 #ifdef CONFIG_TARGET_IMX8QM_MEK_A53_ONLY
-#define IMX_HDMI_FIRMWARE_LOAD_ADDR (CONFIG_SYS_SDRAM_BASE + SZ_64M)
+#define IMX_HDMI_FIRMWARE_LOAD_ADDR (CFG_SYS_SDRAM_BASE + SZ_64M)
 #define IMX_HDMITX_FIRMWARE_SIZE 0x20000
 #define IMX_HDMIRX_FIRMWARE_SIZE 0x20000
 #endif
-
-#define CONFIG_CMD_READ
 
 #undef CONFIG_CMD_EXPORTENV
 #undef CONFIG_CMD_IMPORTENV
@@ -50,16 +36,11 @@
 
 #undef CONFIG_CMD_CRC32
 
-#define CONFIG_SYS_FSL_ESDHC_ADDR       0
+#define CFG_SYS_FSL_ESDHC_ADDR       0
 
-#ifndef CONFIG_TARGET_IMX8QM_MEK_A72_ONLY
 #define CONFIG_PCIE_IMX
-#define CONFIG_CMD_PCI
 #define CONFIG_PCI_SCAN_SHOW
-#endif
 
-#define CONFIG_FEC_XCV_TYPE             RGMII
-#define FEC_QUIRK_ENET_MAC
 #define PHY_ANEG_TIMEOUT 20000
 
 #ifdef CONFIG_AHAB_BOOT
@@ -83,16 +64,16 @@
 	"if test ${hdprx_enable} = yes; then if run loadhdprx; then; hdprx load ${hdprx_addr}; fi; fi; "
 #define INITRD_ADDR_ENV "initrd_addr=0x83100000\0"
 
-#define CONFIG_MFG_ENV_SETTINGS \
-	CONFIG_MFG_ENV_SETTINGS_DEFAULT \
+#define CFG_MFG_ENV_SETTINGS \
+	CFG_MFG_ENV_SETTINGS_DEFAULT \
 	INITRD_ADDR_ENV \
 	"initrd_high=0xffffffffffffffff\0" \
 	"emmc_dev=0\0" \
 	"sd_dev=1\0" \
 
 /* Initial environment variables */
-#define CONFIG_EXTRA_ENV_SETTINGS		\
-	CONFIG_MFG_ENV_SETTINGS \
+#define CFG_EXTRA_ENV_SETTINGS		\
+	CFG_MFG_ENV_SETTINGS \
 	M4_BOOT_ENV \
 	AHAB_ENV \
 	"bootdir=/boot\0" \
@@ -220,15 +201,11 @@
 		"setenv splashimage 0x83100000\0" \
 	"splashdisable=setenv splashfile; setenv splashimage\0"
 
-/* Link Definitions */
-#define CONFIG_SYS_INIT_SP_ADDR         0x80200000
-
 #define CONFIG_SYS_MMC_ENV_PART		0	/* user area */
 
 #define CONFIG_SYS_MMC_ENV_DEV		1   /* USDHC1 */
-#define CONFIG_SYS_FSL_USDHC_NUM	2
 
-#define CONFIG_SYS_SDRAM_BASE		0x80000000
+#define CFG_SYS_SDRAM_BASE		0x80000000
 #define CONFIG_NR_DRAM_BANKS		4
 #define PHYS_SDRAM_1			0x80000000
 #define PHYS_SDRAM_2			0x880000000
@@ -240,28 +217,19 @@
  *
  * Variscite get DDR memory size from eeprom without to use the defines:
  * PHYS_SDRAM_1_SIZE and PHYS_SDRAM_2_SIZE
- * However the compilation of arch/arm/mach-imx/imx8/cpu.c file generate 
+ * However the compilation of arch/arm/mach-imx/imx8/cpu.c file generate
  * the errors: ‘PHYS_SDRAM_1_SIZE’ and ‘PHYS_SDRAM_2_SIZE’ undeclared
-*/
+ */
 #define PHYS_SDRAM_1_SIZE		0x40000000	/* 1 GB */
 #define PHYS_SDRAM_2_SIZE		0x40000000	/* 1 GB */
 
-#define VAR_EEPROM_DRAM_START          CONFIG_SYS_MEMTEST_END 
+#define VAR_EEPROM_DRAM_START          CONFIG_SYS_MEMTEST_END
 
 /* Serial */
 #define CONFIG_BAUDRATE			115200
 
 /* Monitor Command Prompt */
 #define CONFIG_SYS_PROMPT_HUSH_PS2     "> "
-#define CONFIG_SYS_CBSIZE              2048
-#define CONFIG_SYS_MAXARGS             64
-#define CONFIG_SYS_BARGSIZE CONFIG_SYS_CBSIZE
-#define CONFIG_SYS_PBSIZE		(CONFIG_SYS_CBSIZE + \
-					sizeof(CONFIG_SYS_PROMPT) + 16)
-
-/* Generic Timer Definitions */
-#define COUNTER_FREQUENCY		8000000	/* 8MHz */
-
 
 #define CONFIG_SERIAL_TAG
 
@@ -274,8 +242,6 @@
 
 /* USB OTG controller configs */
 #ifdef CONFIG_USB_EHCI_HCD
-#define CONFIG_USB_HOST_ETHER
-#define CONFIG_USB_ETHER_ASIX
 #define CONFIG_MXC_USB_PORTSC		(PORT_PTS_UTMI | PORT_PTS_PTW)
 #endif
 
@@ -288,10 +254,6 @@
 #ifdef CONFIG_SPLASH_SCREEN
 #define CONFIG_SPLASH_SOURCE
 #define CONFIG_HIDE_LOGO_VERSION
-#endif
-
-#if defined(CONFIG_ANDROID_SUPPORT)
-#include "imx8qm_var_som_android.h"
 #endif
 
 #endif /* __IMX8QM_VAR_SOM_H */

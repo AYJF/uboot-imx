@@ -1,7 +1,7 @@
+/* SPDX-License-Identifier: GPL-2.0+ */
 /*
- * Copyright 2019-2020 Variscite Ltd.
+ * Copyright 2019-2023 Variscite Ltd.
  *
- * SPDX-License-Identifier:     GPL-2.0+
  */
 
 int var_get_board_id(struct var_eeprom *ep);

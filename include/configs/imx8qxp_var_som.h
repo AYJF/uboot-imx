@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0+ */
 /*
  * Copyright 2018 NXP
- * Copyright 2019-2022 Variscite Ltd.
+ * Copyright 2019-2023 Variscite Ltd.
  */
 
 #ifndef __IMX8QXP_VAR_SOM_H
@@ -14,29 +14,15 @@
 #include "imx_env.h"
 
 #ifdef CONFIG_SPL_BUILD
-#define CONFIG_SPL_MAX_SIZE				(192 * 1024)
-#define CONFIG_SYS_MONITOR_LEN				(1024 * 1024)
 
 /*
  * 0x08081000 - 0x08180FFF is for m4_0 xip image,
-  * So 3rd container image may start from 0x8181000
+ * So 3rd container image may start from 0x8181000
  */
-#define CONFIG_SYS_UBOOT_BASE 			0x08181000
-
-#define CONFIG_SPL_STACK		0x013fff0
-#define CONFIG_SPL_BSS_START_ADDR	0x00130000
-#define CONFIG_SPL_BSS_MAX_SIZE		0x1000		/* 4 KB */
-#define CONFIG_SYS_SPL_MALLOC_START	0x82200000
-#define CONFIG_SYS_SPL_MALLOC_SIZE	0x80000		/* 512 KB */
-#define CONFIG_MALLOC_F_ADDR		0x00138000
-
-#define CONFIG_SPL_RAW_IMAGE_ARM_TRUSTED_FIRMWARE
-
-#define CONFIG_SPL_ABORT_ON_RAW_IMAGE
+#define CFG_SYS_UBOOT_BASE		0x08181000
+#define CFG_MALLOC_F_ADDR		0x00138000
 
 #endif
-
-#define CONFIG_CMD_READ
 
 /* Flat Device Tree Definitions */
 
@@ -52,16 +38,16 @@
 	"loadm4image_0=load mmc ${mmcdev}:${mmcpart} ${loadaddr} ${bootdir}/${m4_0_image}\0" \
 	"m4boot_0=run loadm4image_0; dcache flush; bootaux ${loadaddr} 0\0" \
 
-#define CONFIG_MFG_ENV_SETTINGS \
-	CONFIG_MFG_ENV_SETTINGS_DEFAULT \
+#define CFG_MFG_ENV_SETTINGS \
+	CFG_MFG_ENV_SETTINGS_DEFAULT \
 	"initrd_addr=0x83100000\0" \
 	"initrd_high=0xffffffffffffffff\0" \
 	"emmc_dev=0\0" \
 	"sd_dev=1\0"
 
 /* Initial environment variables */
-#define CONFIG_EXTRA_ENV_SETTINGS		\
-	CONFIG_MFG_ENV_SETTINGS \
+#define CFG_EXTRA_ENV_SETTINGS		\
+	CFG_MFG_ENV_SETTINGS \
 	M4_BOOT_ENV \
 	AHAB_ENV \
 	"bootdir=/boot\0"	\
@@ -161,16 +147,9 @@
 		"setenv splashimage 0x83100000\0" \
 	"splashdisable=setenv splashfile; setenv splashimage\0"
 
-/* Link Definitions */
-
-#define CONFIG_SYS_INIT_SP_ADDR		0x80200000
-
-/* USDHC1 is for eMMC, USDHC2 is for SD on carrier board */
-#define CONFIG_SYS_FSL_USDHC_NUM	2
-
 /* Size of malloc() pool */
 
-#define CONFIG_SYS_SDRAM_BASE		0x80000000
+#define CFG_SYS_SDRAM_BASE		0x80000000
 #define PHYS_SDRAM_1			0x80000000
 #define PHYS_SDRAM_2			0x880000000
 #define DEFAULT_SDRAM_SIZE		(2048ULL * SZ_1M)
@@ -180,7 +159,7 @@
  *
  * Variscite get DDR memory size from eeprom without to use the defines:
  * PHYS_SDRAM_1_SIZE and PHYS_SDRAM_2_SIZE
- * However the compilation of arch/arm/mach-imx/imx8/cpu.c file generate 
+ * However the compilation of arch/arm/mach-imx/imx8/cpu.c file generate
  * the errors: ‘PHYS_SDRAM_1_SIZE’ and ‘PHYS_SDRAM_2_SIZE’ undeclared
 */
 #define PHYS_SDRAM_1_SIZE		0x40000000	/* 1 GB */
@@ -189,46 +168,13 @@
 /* EEPROM */
 #define VAR_EEPROM_DRAM_START		0x83000000
 
-/* Serial */
-#define CONFIG_BAUDRATE			115200
-
-/* Monitor Command Prompt */
-#define CONFIG_SYS_PROMPT_HUSH_PS2	"> "
-#define CONFIG_SYS_CBSIZE		2048
-#define CONFIG_SYS_MAXARGS		64
-#define CONFIG_SYS_BARGSIZE		CONFIG_SYS_CBSIZE
-#define CONFIG_SYS_PBSIZE		(CONFIG_SYS_CBSIZE + sizeof(CONFIG_SYS_PROMPT) + 16)
-
-/* Generic Timer Definitions */
-#define COUNTER_FREQUENCY		8000000	/* 8MHz */
-
-#define CONFIG_SERIAL_TAG
-
-#define CONFIG_USB_MAX_CONTROLLER_COUNT 2
-
-#ifdef CONFIG_USB_EHCI_HCD
-#define CONFIG_MXC_USB_PORTSC	(PORT_PTS_UTMI | PORT_PTS_PTW)
-#endif
-
 /* Networking */
-#define CONFIG_FEC_ENET_DEV 0
-#if (CONFIG_FEC_ENET_DEV == 0)
-#define CONFIG_ETHPRIME			"eth0"
-#elif (CONFIG_FEC_ENET_DEV == 1)
-#define CONFIG_ETHPRIME			"eth1"
-#endif
-
-#define CONFIG_FEC_XCV_TYPE		RGMII
 #define PHY_ANEG_TIMEOUT		20000
 
 /* Splash screen */
 #ifdef CONFIG_SPLASH_SCREEN
 #define CONFIG_SPLASH_SOURCE
 #define CONFIG_HIDE_LOGO_VERSION
-#endif
-
-#if defined(CONFIG_ANDROID_SUPPORT)
-#include "imx8qxp_var_som_android.h"
 #endif
 
 #endif /* __IMX8QXP_VAR_SOM_H */

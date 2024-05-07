@@ -9,7 +9,6 @@ config SYS_VENDOR
 config SYS_CONFIG_NAME
 	default "imx93_var_som"
 
-source "board/freescale/common/Kconfig"
 source "board/variscite/common/Kconfig"
 
 endif

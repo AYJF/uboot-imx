@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0+
 /*
  * Copyright 2018 NXP
- * Copyright 2019-2022 Variscite Ltd.
+ * Copyright 2019-2023 Variscite Ltd.
  */
 
 #include <common.h>
@@ -154,13 +154,3 @@ int board_late_init(void)
 
 	return 0;
 }
-
-#ifdef CONFIG_FSL_FASTBOOT
-#ifdef CONFIG_ANDROID_RECOVERY
-int is_recovery_key_pressing(void)
-{
-	return 0; /*TODO*/
-}
-#endif /*CONFIG_ANDROID_RECOVERY*/
-#endif /*CONFIG_FSL_FASTBOOT*/
-
