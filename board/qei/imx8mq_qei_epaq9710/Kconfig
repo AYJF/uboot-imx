@@ -1,4 +1,4 @@
-if TARGET_IMX8MQ_EVK
+if TARGET_IMX8MQ_QEI_EPAQ9710
 
 config SYS_BOARD
 	default "imx8mq_qei_epaq9710"

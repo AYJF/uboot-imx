@@ -987,6 +987,7 @@ dtb-$(CONFIG_ARCH_IMX8M) += \
 	imx8mn-ddr4-ab2.dtb \
 	imx8mq-cm.dtb \
 	imx8mn-evk.dtb \
+	imx8mq-qei-epaq9710 \
 	imx8mn-ab2.dtb \
 	imx8mn-var-som-symphony.dtb \
 	imx8mn-venice.dtb \
