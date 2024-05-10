@@ -2,7 +2,9 @@
 #define __ASM_ARCH_RMOBILE_H
 
 #if defined(CONFIG_ARCH_RMOBILE)
-#if defined(CONFIG_R8A7740)
+#if defined(CONFIG_SH73A0)
+#include <asm/arch/sh73a0.h>
+#elif defined(CONFIG_R8A7740)
 #include <asm/arch/r8a7740.h>
 #elif defined(CONFIG_R8A7790)
 #include <asm/arch/r8a7790.h>
@@ -23,6 +25,7 @@
 #endif /* CONFIG_ARCH_RMOBILE */
 
 /* PRR CPU IDs */
+#define RMOBILE_CPU_TYPE_SH73A0		0x37
 #define RMOBILE_CPU_TYPE_R8A7740	0x40
 #define RMOBILE_CPU_TYPE_R8A7790	0x45
 #define RMOBILE_CPU_TYPE_R8A7791	0x47

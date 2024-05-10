@@ -27,7 +27,7 @@ DECLARE_GLOBAL_DATA_PTR;
 
 #ifdef CONFIG_SPI_FLASH
 static struct spi_flash *sf;
-static int splash_sf_read_raw(uintptr_t bmp_load_addr, int offset, size_t read_size)
+static int splash_sf_read_raw(u32 bmp_load_addr, int offset, size_t read_size)
 {
 	if (!sf) {
 		sf = spi_flash_probe(CONFIG_SF_DEFAULT_BUS,
@@ -49,7 +49,7 @@ static int splash_sf_read_raw(u32 bmp_load_addr, int offset, size_t read_size)
 #endif
 
 #ifdef CONFIG_CMD_NAND
-static int splash_nand_read_raw(uintptr_t bmp_load_addr, int offset, size_t read_size)
+static int splash_nand_read_raw(u32 bmp_load_addr, int offset, size_t read_size)
 {
 	struct mtd_info *mtd = get_nand_dev_by_index(nand_curr_device);
 	return nand_read_skip_bad(mtd, offset,
@@ -65,32 +65,8 @@ static int splash_nand_read_raw(u32 bmp_load_addr, int offset, size_t read_size)
 }
 #endif
 
-static int splash_mmc_read_raw(u32 bmp_load_addr, struct splash_location *location,
-			       size_t read_size)
-{
-	struct disk_partition partition;
-	struct blk_desc *desc;
-	lbaint_t blkcnt;
-	int ret, n;
-
-	if (!IS_ENABLED(CONFIG_CMD_MMC)) {
-		debug("%s: mmc support not available\n", __func__);
-		return -ENOSYS;
-	}
-
-	ret = part_get_info_by_dev_and_name_or_num("mmc", location->devpart, &desc,
-						   &partition, 1);
-	if (ret < 0)
-		return ret;
-
-	blkcnt = DIV_ROUND_UP(read_size, partition.blksz);
-	n = blk_dread(desc, partition.start, blkcnt, (void *)(uintptr_t)bmp_load_addr);
-
-	return (n == blkcnt) ? 0 : -EIO;
-}
-
 static int splash_storage_read_raw(struct splash_location *location,
-			       uintptr_t bmp_load_addr, size_t read_size)
+			       u32 bmp_load_addr, size_t read_size)
 {
 	u32 offset;
 
@@ -99,8 +75,6 @@ static int splash_storage_read_raw(struct splash_location *location,
 
 	offset = location->offset;
 	switch (location->storage) {
-	case SPLASH_STORAGE_MMC:
-		return splash_mmc_read_raw(bmp_load_addr, location, read_size);
 	case SPLASH_STORAGE_NAND:
 		return splash_nand_read_raw(bmp_load_addr, offset, read_size);
 	case SPLASH_STORAGE_SF:
@@ -112,7 +86,7 @@ static int splash_storage_read_raw(struct splash_location *location,
 	return -EINVAL;
 }
 
-static int splash_load_raw(struct splash_location *location, uintptr_t bmp_load_addr)
+static int splash_load_raw(struct splash_location *location, u32 bmp_load_addr)
 {
 	struct bmp_header *bmp_hdr;
 	int res;
@@ -253,7 +227,7 @@ static inline int splash_umount_ubifs(void)
 
 #define SPLASH_SOURCE_DEFAULT_FILE_NAME		"splash.bmp"
 
-static int splash_load_fs(struct splash_location *location, uintptr_t bmp_load_addr)
+static int splash_load_fs(struct splash_location *location, u32 bmp_load_addr)
 {
 	int res = 0;
 	loff_t bmp_size;
@@ -343,7 +317,7 @@ static struct splash_location *select_splash_location(
 }
 
 #ifdef CONFIG_FIT
-static int splash_load_fit(struct splash_location *location, uintptr_t bmp_load_addr)
+static int splash_load_fit(struct splash_location *location, u32 bmp_load_addr)
 {
 	int res;
 	int node_offset;
@@ -353,17 +327,17 @@ static int splash_load_fit(struct splash_location *location, uintptr_t bmp_load_
 	int external_splash_addr;
 	int external_splash_size;
 	bool is_splash_external = false;
-	struct legacy_img_hdr *img_header;
+	struct image_header *img_header;
 	const u32 *fit_header;
 	u32 fit_size;
-	const size_t header_size = sizeof(struct legacy_img_hdr);
+	const size_t header_size = sizeof(struct image_header);
 
 	/* Read in image header */
 	res = splash_storage_read_raw(location, bmp_load_addr, header_size);
 	if (res < 0)
 		return res;
 
-	img_header = (struct legacy_img_hdr *)bmp_load_addr;
+	img_header = (struct image_header *)bmp_load_addr;
 	if (image_get_magic(img_header) != FDT_MAGIC) {
 		printf("Could not find FDT magic\n");
 		return -EINVAL;
@@ -373,7 +347,7 @@ static int splash_load_fit(struct splash_location *location, uintptr_t bmp_load_
 
 	/* Read in entire FIT */
 	fit_header = (const u32 *)(bmp_load_addr + header_size);
-	res = splash_storage_read_raw(location, (uintptr_t)fit_header, fit_size);
+	res = splash_storage_read_raw(location, (u32)fit_header, fit_size);
 	if (res < 0)
 		return res;
 
@@ -448,8 +422,7 @@ int splash_source_load(struct splash_location *locations, uint size)
 {
 	struct splash_location *splash_location;
 	char *env_splashimage_value;
-	char *devpart;
-	uintptr_t bmp_load_addr;
+	u32 bmp_load_addr;
 
 	env_splashimage_value = env_get("splashimage");
 	if (env_splashimage_value == NULL)
@@ -464,10 +437,6 @@ int splash_source_load(struct splash_location *locations, uint size)
 	splash_location = select_splash_location(locations, size);
 	if (!splash_location)
 		return -EINVAL;
-
-	devpart = env_get("splashdevpart");
-	if (devpart)
-		splash_location->devpart = devpart;
 
 	if (splash_location->flags == SPLASH_STORAGE_RAW)
 		return splash_load_raw(splash_location, bmp_load_addr);

@@ -21,11 +21,8 @@
 		spi0 = &spi;
 	};
 
-	binman: binman {
-	};
-
 	memory {
-		reg = <0 CFG_SYS_SDRAM_SIZE>;
+		reg = <0 CONFIG_SYS_SDRAM_SIZE>;
 	};
 
 	reserved-memory {
@@ -66,6 +63,7 @@
 	eth@10002000 {
 		compatible = "sandbox,eth";
 		reg = <0x10002000 0x1000>;
+		fake-host-hwaddr = [00 00 66 44 22 00];
 	};
 
 	i2c_0: i2c@0 {
@@ -102,7 +100,3 @@
 #include "sandbox.dtsi"
 #include "cros-ec-keyboard.dtsi"
 #include "sandbox_pmic.dtsi"
-
-#ifdef CONFIG_SANDBOX_VPL
-#include "sandbox_vpl.dtsi"
-#endif

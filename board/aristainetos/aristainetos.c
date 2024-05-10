@@ -9,8 +9,6 @@
  * Author: Fabio Estevam <fabio.estevam@freescale.com>
  */
 
-#include <common.h>
-#include <bmp_layout.h>
 #include <command.h>
 #include <image.h>
 #include <init.h>
@@ -35,12 +33,13 @@
 #include <i2c.h>
 #include <micrel.h>
 #include <miiphy.h>
+#include <lcd.h>
 #include <led.h>
 #include <power/pmic.h>
 #include <power/regulator.h>
 #include <power/da9063_pmic.h>
 #include <splash.h>
-#include <video.h>
+#include <video_fb.h>
 
 DECLARE_GLOBAL_DATA_PTR;
 
@@ -420,6 +419,7 @@ int board_late_init(void)
 	int x, y;
 	int ret;
 
+	led_default_state();
 	splash_get_pos(&x, &y);
 	bmp_display((ulong)&bmp_logo_bitmap[0], x, y);
 

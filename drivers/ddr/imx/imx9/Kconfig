@@ -30,7 +30,4 @@ config SAVED_DRAM_TIMING_BASE
 	  info into memory for low power use.
 	default 0x2051C000
 
-config IMX9_DDRPHY_FW_OFFSET
-	int "Offset of DDR PHY firmware from the end of the SPL image"
-	default 0
 endmenu

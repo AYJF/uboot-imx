@@ -201,6 +201,7 @@
 };
 
 &eqos {
+	compatible = "fsl,imx-eqos";
 	phy-mode = "rgmii-id";
 };
 

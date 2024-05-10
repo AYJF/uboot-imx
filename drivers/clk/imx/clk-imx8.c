@@ -319,7 +319,7 @@ static int imx8_clk_set_parent(struct clk *clk, struct clk *parent)
 	return -ENOSYS;
 }
 
-#if IS_ENABLED(CONFIG_CMD_CLK)
+#if CONFIG_IS_ENABLED(CMD_CLK)
 int soc_clk_dump(void)
 {
 	struct udevice *dev;

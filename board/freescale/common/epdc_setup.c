@@ -5,6 +5,7 @@
  * Peng Fan <Peng.Fan@freescale.com>
  */
 #include <common.h>
+#include <lcd.h>
 #include <linux/err.h>
 #include <linux/types.h>
 #include <malloc.h>

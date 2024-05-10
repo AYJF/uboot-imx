@@ -45,16 +45,16 @@
 			enable-active-high;
 		};
 
-		reg_pciea: regulator-pcie {
+		epdev_on: fixedregulator@100 {
 			compatible = "regulator-fixed";
-			pinctrl-names = "default";
-			pinctrl-0 = <&pinctrl_pciea_reg>;
+			pinctrl-names = "default", "sleep";
+			pinctrl-0 = <&pinctrl_wlreg_on>;
+			pinctrl-1 = <&pinctrl_wlreg_on_sleep>;
 			regulator-min-microvolt = <3300000>;
 			regulator-max-microvolt = <3300000>;
-			regulator-name = "mpcie_3v3";
+			regulator-name = "epdev_on";
 			gpio = <&gpio1 13 0>;
 			enable-active-high;
-			regulator-always-on;
 		};
 	};
 };
@@ -222,9 +222,15 @@
 			>;
 		};
 
-		pinctrl_pciea_reg: pcieareggrp {
+		pinctrl_wlreg_on: wlregongrp{
 			fsl,pins = <
-				SC_P_LVDS1_I2C0_SDA_LSIO_GPIO1_IO13		0x06000021
+				SC_P_LVDS1_I2C0_SDA_LSIO_GPIO1_IO13		0x06000000
+			>;
+		};
+
+		pinctrl_wlreg_on_sleep: wlregon_sleepgrp{
+			fsl,pins = <
+				SC_P_LVDS1_I2C0_SDA_LSIO_GPIO1_IO13		0x07800000
 			>;
 		};
 	};
@@ -416,7 +422,7 @@
 	disable-gpio = <&gpio4 9 GPIO_ACTIVE_LOW>;
 	reset-gpio = <&gpio4 29 GPIO_ACTIVE_LOW>;
 	clkreq-gpio = <&gpio4 27 GPIO_ACTIVE_LOW>;
-	vpcie-supply = <&reg_pciea>;
+	epdev_on = <&epdev_on>;
 	status = "okay";
 };
 

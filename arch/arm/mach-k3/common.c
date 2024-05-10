@@ -181,7 +181,7 @@ int load_firmware(char *name_fw, char *name_loadaddr, u32 *loadaddr)
 	if (!*loadaddr)
 		return 0;
 
-	if (!get_fs_loader(&fsdev)) {
+	if (!uclass_get_device(UCLASS_FS_FIRMWARE_LOADER, 0, &fsdev)) {
 		size = request_firmware_into_buf(fsdev, name, (void *)*loadaddr,
 						 0, 0);
 	}
@@ -290,7 +290,9 @@ void board_fit_image_post_process(const void *fit, int node, void **p_image,
 	}
 #endif
 
+#if IS_ENABLED(CONFIG_TI_SECURE_DEVICE)
 	ti_secure_image_post_process(p_image, p_size);
+#endif
 }
 #endif
 
@@ -394,54 +396,7 @@ void reset_cpu(void)
 }
 #endif
 
-enum k3_device_type get_device_type(void)
-{
-	u32 sys_status = readl(K3_SEC_MGR_SYS_STATUS);
-
-	u32 sys_dev_type = (sys_status & SYS_STATUS_DEV_TYPE_MASK) >>
-			SYS_STATUS_DEV_TYPE_SHIFT;
-
-	u32 sys_sub_type = (sys_status & SYS_STATUS_SUB_TYPE_MASK) >>
-			SYS_STATUS_SUB_TYPE_SHIFT;
-
-	switch (sys_dev_type) {
-	case SYS_STATUS_DEV_TYPE_GP:
-		return K3_DEVICE_TYPE_GP;
-	case SYS_STATUS_DEV_TYPE_TEST:
-		return K3_DEVICE_TYPE_TEST;
-	case SYS_STATUS_DEV_TYPE_EMU:
-		return K3_DEVICE_TYPE_EMU;
-	case SYS_STATUS_DEV_TYPE_HS:
-		if (sys_sub_type == SYS_STATUS_SUB_TYPE_VAL_FS)
-			return K3_DEVICE_TYPE_HS_FS;
-		else
-			return K3_DEVICE_TYPE_HS_SE;
-	default:
-		return K3_DEVICE_TYPE_BAD;
-	}
-}
-
 #if defined(CONFIG_DISPLAY_CPUINFO)
-static const char *get_device_type_name(void)
-{
-	enum k3_device_type type = get_device_type();
-
-	switch (type) {
-	case K3_DEVICE_TYPE_GP:
-		return "GP";
-	case K3_DEVICE_TYPE_TEST:
-		return "TEST";
-	case K3_DEVICE_TYPE_EMU:
-		return "EMU";
-	case K3_DEVICE_TYPE_HS_FS:
-		return "HS-FS";
-	case K3_DEVICE_TYPE_HS_SE:
-		return "HS-SE";
-	default:
-		return "BAD";
-	}
-}
-
 int print_cpuinfo(void)
 {
 	struct udevice *soc;
@@ -463,10 +418,8 @@ int print_cpuinfo(void)
 
 	ret = soc_get_revision(soc, name, 64);
 	if (!ret) {
-		printf("%s ", name);
+		printf("%s\n", name);
 	}
-
-	printf("%s\n", get_device_type_name());
 
 	return 0;
 }
@@ -493,7 +446,7 @@ bool soc_is_j7200(void)
 }
 
 #ifdef CONFIG_ARM64
-void board_prep_linux(struct bootm_headers *images)
+void board_prep_linux(bootm_headers_t *images)
 {
 	debug("Linux kernel Image start = 0x%lx end = 0x%lx\n",
 	      images->os.start, images->os.end);
@@ -561,9 +514,9 @@ void remove_fwl_configs(struct fwl_data *fwl_data, size_t fwl_data_size)
 void spl_enable_dcache(void)
 {
 #if !(defined(CONFIG_SYS_ICACHE_OFF) && defined(CONFIG_SYS_DCACHE_OFF))
-	phys_addr_t ram_top = CFG_SYS_SDRAM_BASE;
+	phys_addr_t ram_top = CONFIG_SYS_SDRAM_BASE;
 
-	dram_init();
+	dram_init_banksize();
 
 	/* reserve TLB table */
 	gd->arch.tlb_size = PGTABLE_SIZE;
@@ -605,10 +558,6 @@ int misc_init_r(void)
 		if (ret)
 			printf("Failed to probe am65_cpsw_nuss driver\n");
 	}
-
-	/* Default FIT boot on non-GP devices */
-	if (get_device_type() != K3_DEVICE_TYPE_GP)
-		env_set("boot_fit", "1");
 
 	return 0;
 }

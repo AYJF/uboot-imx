@@ -10,23 +10,31 @@
 
 #include "mx7_common.h"
 
-#define CFG_MXC_UART_BASE            UART1_IPS_BASE_ADDR
+#define CONFIG_MXC_UART_BASE            UART1_IPS_BASE_ADDR
 
 /* Network */
-#define CFG_FEC_MXC_PHYADDR          0
+#define CONFIG_FEC_XCV_TYPE             RGMII
+#define CONFIG_ETHPRIME                 "FEC"
+#define CONFIG_FEC_MXC_PHYADDR          0
 
 /* ENET1 */
 #define IMX_FEC_BASE			ENET_IPS_BASE_ADDR
 
 /* PMIC */
-#define CFG_POWER_PFUZE3000_I2C_ADDR	0x08
+#define CONFIG_POWER_PFUZE3000
+#define CONFIG_POWER_PFUZE3000_I2C_ADDR	0x08
 
-#define CFG_SYS_I2C_PCA953X_ADDR	0x20
-#define CFG_SYS_I2C_PCA953X_WIDTH	{ {0x20, 16} }
+#define CONFIG_PCA953X
+#define CONFIG_SYS_I2C_PCA953X_ADDR	0x20
+#define CONFIG_SYS_I2C_PCA953X_WIDTH	{ {0x20, 16} }
 
-#undef CFG_EXTRA_ENV_SETTINGS
+#undef CONFIG_SYS_AUTOLOAD
+#undef CONFIG_EXTRA_ENV_SETTINGS
 
-#define CFG_EXTRA_ENV_SETTINGS \
+#define CONFIG_SYS_AUTOLOAD		"no"
+
+#define CONFIG_EXTRA_ENV_SETTINGS \
+	"autoload=off\0" \
 	"script=boot.scr\0" \
 	"loadscript=load ${storagetype} ${storagedev} ${loadaddr} ${script};\0" \
 	"loadkernel=load ${storagetype} ${storagedev} ${loadaddr} ${kernel};\0" \
@@ -80,9 +88,14 @@
 /* Physical Memory Map */
 #define PHYS_SDRAM			MMDC0_ARB_BASE_ADDR
 
-#define CFG_SYS_SDRAM_BASE		PHYS_SDRAM
-#define CFG_SYS_INIT_RAM_ADDR	IRAM_BASE_ADDR
-#define CFG_SYS_INIT_RAM_SIZE	IRAM_SIZE
+#define CONFIG_SYS_SDRAM_BASE		PHYS_SDRAM
+#define CONFIG_SYS_INIT_RAM_ADDR	IRAM_BASE_ADDR
+#define CONFIG_SYS_INIT_RAM_SIZE	IRAM_SIZE
+
+#define CONFIG_SYS_INIT_SP_OFFSET \
+	(CONFIG_SYS_INIT_RAM_SIZE - GENERATED_GBL_DATA_SIZE)
+#define CONFIG_SYS_INIT_SP_ADDR \
+	(CONFIG_SYS_INIT_RAM_ADDR + CONFIG_SYS_INIT_SP_OFFSET)
 
 /* SPI Flash support */
 
@@ -90,13 +103,19 @@
 
 /* MMC Config*/
 #ifdef CONFIG_FSL_USDHC
-#define CFG_SYS_FSL_ESDHC_ADDR       USDHC1_BASE_ADDR
+#define CONFIG_SYS_FSL_ESDHC_ADDR       USDHC1_BASE_ADDR
 
-#define CFG_SYS_FSL_USDHC_NUM	2
+#define CONFIG_SYS_FSL_USDHC_NUM	2
+#define CONFIG_MMCROOT			"/dev/mmcblk0p2" /* USDHC1 */
 #endif
 
 /* USB Configs */
-#define CFG_MXC_USB_PORTSC  (PORT_PTS_UTMI | PORT_PTS_PTW)
-#define CFG_MXC_USB_FLAGS   0
+#define CONFIG_EHCI_HCD_INIT_AFTER_RESET
+#define CONFIG_MXC_USB_PORTSC  (PORT_PTS_UTMI | PORT_PTS_PTW)
+#define CONFIG_MXC_USB_FLAGS   0
+#define CONFIG_USB_MAX_CONTROLLER_COUNT 2
+
+/* SPL */
+#include "imx7_spl.h"
 
 #endif	/* __CONFIG_H */

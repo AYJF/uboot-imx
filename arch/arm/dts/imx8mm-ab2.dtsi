@@ -9,7 +9,6 @@
 	/delete-node/ ir-receiver;
 	/delete-node/ rm67199_panel;
 	/delete-node/ sound-wm8524;
-	/delete-node/ regulator-pcie;
 
 	leds {
 		panel {
@@ -46,18 +45,13 @@
 		regulator-always-on;
 		regulator-boot-on;
 	};
-
-	reg_pcie0: regulator-pcie {
-		status = "disabled";
-	};
 };
 
 &fec1 {
 	mdio {
 		ethphy0: ethernet-phy@0 {
 			reset-gpios = <&gpio1 5 GPIO_ACTIVE_LOW>;
-			reset-deassert-us = <150000>;
-			reset-assert-us = <15000>;
+			max-speed = <100>;
 		};
 	};
 };
@@ -100,8 +94,6 @@
 };
 
 &iomuxc {
-	/delete-node/ pcie0reggrp;
-
 	pinctrl_fec1: fec1grp {
 		fsl,pins = <
 			MX8MM_IOMUXC_ENET_MDC_ENET1_MDC		0x3
@@ -163,12 +155,4 @@
 
 &usdhc2 {
 	cd-gpios = <&gpio2 12 GPIO_ACTIVE_LOW>;
-};
-
-&pcie_phy {
-	status = "disabled";
-};
-
-&pcie0 {
-	status = "disabled";
 };

@@ -13,15 +13,25 @@
 
 /* Miscellaneous configurable options */
 
+#define CONFIG_SYS_MAXARGS		8
+#define CONFIG_SYS_BOOTM_LEN		SZ_64M
+#define CONFIG_SYS_CBSIZE		SZ_1K
+#define CONFIG_SYS_PBSIZE		(CONFIG_SYS_CBSIZE +	\
+					sizeof(CONFIG_SYS_PROMPT) + 16)
+
+#define CONFIG_SYS_NONCACHED_MEMORY	SZ_1M
+
 /* Environment */
 
 /* Preloader -> Uboot */
+#define CONFIG_SYS_INIT_SP_ADDR		(CONFIG_SYS_TEXT_BASE + SZ_2M - \
+					 GENERATED_GBL_DATA_SIZE)
 
 /* MMC */
 #define MMC_SUPPORTS_TUNING
 
 /* DRAM */
-#define CFG_SYS_SDRAM_BASE		0x80000000
+#define CONFIG_SYS_SDRAM_BASE		0x80000000
 
 /* This is needed for kernel booting */
 #define FDT_HIGH			"0xac000000"
@@ -33,6 +43,8 @@
 	"fdtfile=" CONFIG_DEFAULT_FDT_FILE "\0"
 
 /* Ethernet */
+#define CONFIG_IPADDR			192.168.1.1
+#define CONFIG_SERVERIP			192.168.1.2
 
 #ifdef CONFIG_DISTRO_DEFAULTS
 
@@ -42,7 +54,7 @@
 #include <config_distro_bootcmd.h>
 
 /* Extra environment variables */
-#define CFG_EXTRA_ENV_SETTINGS	\
+#define CONFIG_EXTRA_ENV_SETTINGS	\
 	ENV_MEM_LAYOUT_SETTINGS		\
 	BOOTENV
 

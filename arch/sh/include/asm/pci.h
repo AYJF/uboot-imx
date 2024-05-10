@@ -13,6 +13,8 @@
 #include <pci.h>
 #if defined(CONFIG_SH7751_PCI)
 int pci_sh7751_init(struct pci_controller *hose);
+#elif defined(CONFIG_SH7780_PCI)
+int pci_sh7780_init(struct pci_controller *hose);
 #else
 #error "Not support PCI."
 #endif

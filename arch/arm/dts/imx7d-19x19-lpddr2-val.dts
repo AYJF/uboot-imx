@@ -15,10 +15,6 @@
 	model = "i.MX7D LPDDR2 19x19 VAL Board";
 	compatible = "fsl,imx7d-19x19-lpddr2-val", "fsl,imx7d";
 
-	chosen {
-		stdout-path = &uart1;
-	};
-
 	gpio-keys {
 		compatible = "gpio-keys";
 		pinctrl-names = "default";

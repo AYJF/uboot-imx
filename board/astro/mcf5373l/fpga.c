@@ -123,7 +123,7 @@ int altera_write_fn(const void *buf, size_t len, int flush, int cookie)
 
 		if (bytecount % len_40 == 0) {
 #if defined(CONFIG_HW_WATCHDOG) || defined(CONFIG_WATCHDOG)
-			schedule();
+			WATCHDOG_RESET();
 #endif
 #ifdef CONFIG_SYS_FPGA_PROG_FEEDBACK
 			putc('.');	/* let them know we are alive */
@@ -168,8 +168,7 @@ Altera_CYC2_Passive_Serial_fns altera_fns = {
 	altera_post_fn
 };
 
-#define FPGA_COUNT	1
-Altera_desc altera_fpga[FPGA_COUNT] = {
+Altera_desc altera_fpga[CONFIG_FPGA_COUNT] = {
 	{Altera_CYC2,
 	 passive_serial,
 	 85903,
@@ -183,7 +182,7 @@ int astro5373l_altera_load(void)
 {
 	int i;
 
-	for (i = 0; i < FPGA_COUNT; i++) {
+	for (i = 0; i < CONFIG_FPGA_COUNT; i++) {
 		/*
 		 * I did not yet manage to get relocation work properly,
 		 * so set stuff here instead of static initialisation:
@@ -343,7 +342,7 @@ int xilinx_fastwr_config_fn(void *buf, size_t len, int flush, int cookie)
 		}
 		if (bytecount % len_40 == 0) {
 #if defined(CONFIG_HW_WATCHDOG) || defined(CONFIG_WATCHDOG)
-			schedule();
+			WATCHDOG_RESET();
 #endif
 #ifdef CONFIG_SYS_FPGA_PROG_FEEDBACK
 			putc('.');	/* let them know we are alive */
@@ -373,7 +372,7 @@ xilinx_spartan3_slave_serial_fns xilinx_fns = {
 	xilinx_fastwr_config_fn
 };
 
-xilinx_desc xilinx_fpga[FPGA_COUNT] = {
+xilinx_desc xilinx_fpga[CONFIG_FPGA_COUNT] = {
 	{xilinx_spartan3,
 	 slave_serial,
 	 XILINX_XC3S4000_SIZE,
@@ -389,7 +388,7 @@ int astro5373l_xilinx_load(void)
 
 	fpga_init();
 
-	for (i = 0; i < FPGA_COUNT; i++) {
+	for (i = 0; i < CONFIG_FPGA_COUNT; i++) {
 		/*
 		 * I did not yet manage to get relocation work properly,
 		 * so set stuff here instead of static initialisation:

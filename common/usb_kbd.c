@@ -446,7 +446,7 @@ static int usb_kbd_getc(struct stdio_dev *sdev)
 	data = usb_kbd_dev->privptr;
 
 	while (data->usb_in_pointer == data->usb_out_pointer) {
-		schedule();
+		WATCHDOG_RESET();
 		usb_kbd_poll_for_event(usb_kbd_dev);
 	}
 
@@ -581,22 +581,21 @@ static int probe_usb_keyboard(struct usb_device *dev)
 
 	stdinname = env_get("stdin");
 #if CONFIG_IS_ENABLED(CONSOLE_MUX)
-	if (strstr(stdinname, DEVNAME) != NULL) {
-		error = iomux_doenv(stdin, stdinname);
-		if (error)
-			return error;
-	}
+	error = iomux_doenv(stdin, stdinname);
+	if (error)
+		return error;
 #else
 	/* Check if this is the standard input device. */
-	if (!strcmp(stdinname, DEVNAME)) {
-		/* Reassign the console */
-		if (overwrite_console())
-			return 1;
+	if (strcmp(stdinname, DEVNAME))
+		return 1;
 
-		error = console_assign(stdin, DEVNAME);
-		if (error)
-			return error;
-	}
+	/* Reassign the console */
+	if (overwrite_console())
+		return 1;
+
+	error = console_assign(stdin, DEVNAME);
+	if (error)
+		return error;
 #endif
 
 	return 0;

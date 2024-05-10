@@ -12,11 +12,18 @@
 
 #include <configs/x86-common.h>
 
-/* ns16550 UART is memory-mapped in Quark SoC */
+#define CONFIG_SYS_MONITOR_LEN		(1 << 20)
 
-#define CFG_STD_DEVICES_SETTINGS	"stdin=serial\0" \
+/* ns16550 UART is memory-mapped in Quark SoC */
+#undef  CONFIG_SYS_NS16550_PORT_MAPPED
+
+#define CONFIG_STD_DEVICES_SETTINGS	"stdin=serial\0" \
 					"stdout=serial\0" \
 					"stderr=serial\0"
+
+/* 10/100M Ethernet support */
+#define CONFIG_DESIGNWARE_ETH
+#define CONFIG_DW_ALTDESCRIPTOR
 
 /* Environment configuration */
 

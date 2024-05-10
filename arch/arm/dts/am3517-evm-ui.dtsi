@@ -1,6 +1,9 @@
-// SPDX-License-Identifier: GPL-2.0-only
 /*
- * Copyright (C) 2018 Logic PD, Inc - https://www.logicpd.com/
+ * Copyright (C) 2018 Logic PD, Inc - http://www.logicpd.com/
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 2 as
+ * published by the Free Software Foundation.
  */
 
 #include <dt-bindings/input/input.h>
@@ -72,7 +75,7 @@
 
 		record {
 			label = "Record";
-			linux,code = <KEY_RECORD>;
+			/* linux,code = <BTN_0>; */
 			gpios = <&tca6416_2 15 GPIO_ACTIVE_LOW>;
 		};
 

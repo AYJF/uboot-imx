@@ -11,6 +11,7 @@
 #include <linux/errno.h>
 #include <malloc.h>
 #include <video.h>
+#include <video_fb.h>
 #include <display.h>
 
 #include <asm/cache.h>

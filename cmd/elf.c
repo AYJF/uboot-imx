@@ -14,7 +14,7 @@
 #include <net.h>
 #include <vxworks.h>
 #ifdef CONFIG_X86
-#include <vesa.h>
+#include <vbe.h>
 #include <asm/cache.h>
 #include <asm/e820.h>
 #include <linux/linkage.h>
@@ -72,7 +72,6 @@ int do_bootelf(struct cmd_tbl *cmdtp, int flag, int argc, char *const argv[])
 		return rcode;
 
 	printf("## Starting application at 0x%08lx ...\n", addr);
-	flush();
 
 	/*
 	 * pass address parameter as argv[0] (aka command name),
@@ -275,7 +274,6 @@ int do_bootvx(struct cmd_tbl *cmdtp, int flag, int argc, char *const argv[])
 		puts("## Not an ELF image, assuming binary\n");
 
 	printf("## Starting vxWorks at 0x%08lx ...\n", addr);
-	flush();
 
 	dcache_disable();
 #if defined(CONFIG_ARM64) && defined(CONFIG_ARMV8_PSCI)

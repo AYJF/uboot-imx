@@ -8,7 +8,6 @@
 #include <cpu.h>
 #include <cpu_func.h>
 #include <dm.h>
-#include <event.h>
 #include <init.h>
 #include <log.h>
 #include <asm/cache.h>
@@ -60,7 +59,7 @@ int arch_cpu_init(void)
 
 static void power_off_all_usb(void);
 
-static int imx8_init_mu(void *ctx, struct event *event)
+int arch_cpu_init_dm(void)
 {
 	struct udevice *devp;
 	int node, ret;
@@ -72,9 +71,6 @@ static int imx8_init_mu(void *ctx, struct event *event)
 		printf("could not get scu %d\n", ret);
 		return ret;
 	}
-
-	if (gd->flags & GD_FLG_RELOC) /* Skip others for board_r */
-		return 0;
 
 	if (IS_ENABLED(CONFIG_XEN))
 		return 0;
@@ -105,7 +101,6 @@ static int imx8_init_mu(void *ctx, struct event *event)
 
 	return 0;
 }
-EVENT_SPY(EVT_DM_POST_INIT, imx8_init_mu);
 
 #if defined(CONFIG_ARCH_MISC_INIT)
 int arch_misc_init(void)
@@ -518,7 +513,6 @@ __weak void board_mem_get_layout(u64 *phys_sdram_1_start,
 	*phys_sdram_2_size = PHYS_SDRAM_2_SIZE;
 }
 
-#ifndef CONFIG_IMX8_BOARD_INIT_DRAM
 phys_size_t get_effective_memsize(void)
 {
 	sc_rm_mr_t mr;
@@ -546,8 +540,8 @@ phys_size_t get_effective_memsize(void)
 
 			/* Find the memory region runs the U-Boot */
 			if (start >= phys_sdram_1_start && start <= end1 &&
-			    (start <= CONFIG_TEXT_BASE &&
-			    end >= CONFIG_TEXT_BASE)) {
+			    (start <= CONFIG_SYS_TEXT_BASE &&
+			    end >= CONFIG_SYS_TEXT_BASE)) {
 				if ((end + 1) <=
 				    ((sc_faddr_t)phys_sdram_1_start +
 				    phys_sdram_1_size))
@@ -704,7 +698,7 @@ int dram_init_banksize(void)
 	return 0;
 }
 
-static u64 get_dram_block_attrs(sc_faddr_t addr_start)
+static u64 get_block_attrs(sc_faddr_t addr_start)
 {
 	u64 attr = PTE_BLOCK_MEMTYPE(MT_DEVICE_NGNRNE) | PTE_BLOCK_NON_SHARE |
 		PTE_BLOCK_PXN | PTE_BLOCK_UXN;
@@ -727,7 +721,7 @@ static u64 get_dram_block_attrs(sc_faddr_t addr_start)
 	return attr;
 }
 
-static u64 get_dram_block_size(sc_faddr_t addr_start, sc_faddr_t addr_end)
+static u64 get_block_size(sc_faddr_t addr_start, sc_faddr_t addr_end)
 {
 	sc_faddr_t end1, end2;
 	u64 phys_sdram_1_start, phys_sdram_1_size;
@@ -750,10 +744,6 @@ static u64 get_dram_block_size(sc_faddr_t addr_start, sc_faddr_t addr_end)
 
 	return (addr_end - addr_start + 1);
 }
-#else
-extern u64 get_dram_block_attrs(sc_faddr_t addr_start);
-extern u64 get_dram_block_size(sc_faddr_t addr_start, sc_faddr_t addr_end);
-#endif
 
 #define MAX_PTE_ENTRIES 512
 #define MAX_MEM_MAP_REGIONS 16
@@ -824,8 +814,8 @@ void enable_caches(void)
 		if (!err) {
 			imx8_mem_map[i].virt = start;
 			imx8_mem_map[i].phys = start;
-			imx8_mem_map[i].size = get_dram_block_size(start, end);
-			imx8_mem_map[i].attrs = get_dram_block_attrs(start);
+			imx8_mem_map[i].size = get_block_size(start, end);
+			imx8_mem_map[i].attrs = get_block_attrs(start);
 			i++;
 		}
 	}

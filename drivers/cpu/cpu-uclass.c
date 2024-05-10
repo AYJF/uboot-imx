@@ -14,19 +14,28 @@
 #include <dm/lists.h>
 #include <dm/root.h>
 #include <linux/err.h>
-#include <relocate.h>
-
-DECLARE_GLOBAL_DATA_PTR;
 
 int cpu_probe_all(void)
 {
-	int ret = uclass_probe_all(UCLASS_CPU);
+	struct udevice *cpu;
+	int ret;
 
+	ret = uclass_first_device(UCLASS_CPU, &cpu);
 	if (ret) {
-		debug("%s: Error while probing CPUs (err = %d %s)\n",
-		      __func__, ret, errno_str(ret));
+		debug("%s: No CPU found (err = %d)\n", __func__, ret);
+		return ret;
 	}
-	return ret;
+
+	while (cpu) {
+		ret = uclass_next_device(&cpu);
+		if (ret) {
+			debug("%s: Error while probing CPU (err = %d)\n",
+			      __func__, ret);
+			return ret;
+		}
+	}
+
+	return 0;
 }
 
 int cpu_is_current(struct udevice *cpu)
@@ -127,36 +136,9 @@ static int uclass_cpu_init(struct uclass *uc)
 	return ret;
 }
 
-static int uclass_cpu_post_bind(struct udevice *dev)
-{
-	if (IS_ENABLED(CONFIG_NEEDS_MANUAL_RELOC) &&
-	    (gd->flags & GD_FLG_RELOC)) {
-		struct cpu_ops *ops = cpu_get_ops(dev);
-		static int reloc_done;
-
-		if (!reloc_done) {
-			if (ops->get_desc)
-				MANUAL_RELOC(ops->get_desc);
-			if (ops->get_info)
-				MANUAL_RELOC(ops->get_info);
-			if (ops->get_count)
-				MANUAL_RELOC(ops->get_count);
-			if (ops->get_vendor)
-				MANUAL_RELOC(ops->get_vendor);
-			if (ops->is_current)
-				MANUAL_RELOC(ops->is_current);
-
-			reloc_done++;
-		}
-	}
-
-	return 0;
-}
-
 UCLASS_DRIVER(cpu) = {
 	.id		= UCLASS_CPU,
 	.name		= "cpu",
 	.flags		= DM_UC_FLAG_SEQ_ALIAS,
 	.init		= uclass_cpu_init,
-	.post_bind	= uclass_cpu_post_bind,
 };

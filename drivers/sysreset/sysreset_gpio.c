@@ -17,7 +17,6 @@ struct gpio_reboot_priv {
 static int gpio_reboot_request(struct udevice *dev, enum sysreset_t type)
 {
 	struct gpio_reboot_priv *priv = dev_get_priv(dev);
-	int ret;
 
 	/*
 	 * When debug log is enabled please make sure that chars won't end up
@@ -27,11 +26,7 @@ static int gpio_reboot_request(struct udevice *dev, enum sysreset_t type)
 	debug("GPIO reset\n");
 
 	/* Writing 1 respects polarity (active high/low) based on gpio->flags */
-	ret = dm_gpio_set_value(&priv->gpio, 1);
-	if (ret < 0)
-		return ret;
-
-	return -EINPROGRESS;
+	return dm_gpio_set_value(&priv->gpio, 1);
 }
 
 static struct sysreset_ops gpio_reboot_ops = {

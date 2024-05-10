@@ -25,13 +25,6 @@ extern void at91_pda_detect(void);
 
 DECLARE_GLOBAL_DATA_PTR;
 
-static void rgb_leds_init(void)
-{
-	atmel_pio4_set_pio_output(AT91_PIO_PORTB, 10, 0);	/* LED RED */
-	atmel_pio4_set_pio_output(AT91_PIO_PORTB, 8, 0);	/* LED GREEN */
-	atmel_pio4_set_pio_output(AT91_PIO_PORTB, 6, 1);	/* LED BLUE */
-}
-
 #ifdef CONFIG_NAND_ATMEL
 static void board_nand_hw_init(void)
 {
@@ -108,6 +101,9 @@ void board_debug_uart_init(void)
 #ifdef CONFIG_BOARD_EARLY_INIT_F
 int board_early_init_f(void)
 {
+#ifdef CONFIG_DEBUG_UART
+	debug_uart_init();
+#endif
 	return 0;
 }
 #endif
@@ -115,9 +111,7 @@ int board_early_init_f(void)
 int board_init(void)
 {
 	/* address of boot parameters */
-	gd->bd->bi_boot_params = CFG_SYS_SDRAM_BASE + 0x100;
-
-	rgb_leds_init();
+	gd->bd->bi_boot_params = CONFIG_SYS_SDRAM_BASE + 0x100;
 
 #ifdef CONFIG_NAND_ATMEL
 	board_nand_hw_init();
@@ -130,8 +124,8 @@ int board_init(void)
 
 int dram_init(void)
 {
-	gd->ram_size = get_ram_size((void *)CFG_SYS_SDRAM_BASE,
-				    CFG_SYS_SDRAM_SIZE);
+	gd->ram_size = get_ram_size((void *)CONFIG_SYS_SDRAM_BASE,
+				    CONFIG_SYS_SDRAM_SIZE);
 	return 0;
 }
 

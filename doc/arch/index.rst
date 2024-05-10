@@ -10,9 +10,9 @@ Architecture-specific doc
    arm64
    m68k
    mips
+   nds32
    nios2
-   riscv
-   sandbox/index
+   sandbox
    sh
    x86
    xtensa

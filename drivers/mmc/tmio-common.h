@@ -138,9 +138,8 @@ struct tmio_sd_priv {
 #endif
 #if CONFIG_IS_ENABLED(CLK)
 	struct clk			clk;
-	struct clk			clkh;
 #endif
-#if IS_ENABLED(CONFIG_RENESAS_SDHI)
+#if CONFIG_IS_ENABLED(RENESAS_SDHI)
 	unsigned int			smpcmp;
 	u8				tap_set;
 	u8				tap_num;
@@ -152,7 +151,6 @@ struct tmio_sd_priv {
 	u8				hs400_bad_tap;
 	const u8			*adjust_hs400_calib_table;
 	u32			quirks;
-	bool				needs_clkh_fallback;
 #endif
 	ulong (*clk_get_rate)(struct tmio_sd_priv *);
 };

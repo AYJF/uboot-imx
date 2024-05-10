@@ -25,7 +25,6 @@
 #include <cpu_func.h>
 #include <irq_func.h>
 #include <linux/delay.h>
-#include <stdio.h>
 
 __weak void reset_misc(void)
 {
@@ -34,7 +33,8 @@ __weak void reset_misc(void)
 int do_reset(struct cmd_tbl *cmdtp, int flag, int argc, char *const argv[])
 {
 	puts ("resetting ...\n");
-	flush();
+
+	mdelay(50);				/* wait 50 ms */
 
 	disable_interrupts();
 

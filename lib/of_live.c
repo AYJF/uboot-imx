@@ -97,10 +97,6 @@ static void *unflatten_dt_node(const void *blob, void *mem, int *poffset,
 		char *fn;
 
 		fn = (char *)np + sizeof(*np);
-		if (new_format) {
-			np->name = pathp;
-			has_name = 1;
-		}
 		np->full_name = fn;
 		if (new_format) {
 			/* rebuild full path for new format */
@@ -206,8 +202,7 @@ static void *unflatten_dt_node(const void *blob, void *mem, int *poffset,
 	}
 	if (!dryrun) {
 		*prev_pp = NULL;
-		if (!has_name)
-			np->name = of_get_property(np, "name", NULL);
+		np->name = of_get_property(np, "name", NULL);
 		np->type = of_get_property(np, "device_type", NULL);
 
 		if (!np->name)
@@ -253,7 +248,19 @@ static void *unflatten_dt_node(const void *blob, void *mem, int *poffset,
 	return mem;
 }
 
-int unflatten_device_tree(const void *blob, struct device_node **mynodes)
+/**
+ * unflatten_device_tree() - create tree of device_nodes from flat blob
+ *
+ * unflattens a device-tree, creating the
+ * tree of struct device_node. It also fills the "name" and "type"
+ * pointers of the nodes so the normal device-tree walking functions
+ * can be used.
+ * @blob: The blob to expand
+ * @mynodes: The device_node tree created by the call
+ * Return: 0 if OK, -ve on error
+ */
+static int unflatten_device_tree(const void *blob,
+				 struct device_node **mynodes)
 {
 	unsigned long size;
 	int start;

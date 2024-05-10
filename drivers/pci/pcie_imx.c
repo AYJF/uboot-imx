@@ -17,7 +17,6 @@
 #include <log.h>
 #include <malloc.h>
 #include <pci.h>
-#include <power/regulator.h>
 #if CONFIG_IS_ENABLED(CLK)
 #include <clk.h>
 #else
@@ -39,6 +38,7 @@
 #include <regmap.h>
 #include <asm-generic/gpio.h>
 #include <dt-bindings/soc/imx8_hsio.h>
+#include <power/regulator.h>
 #include <dm/device_compat.h>
 
 enum imx_pcie_variants {
@@ -265,7 +265,7 @@ struct imx_pcie_priv {
 #endif
 
 #if CONFIG_IS_ENABLED(DM_REGULATOR)
-	struct udevice 		*vpcie;
+	struct udevice 		*epdev_on;
 	struct udevice 		*pcie_bus_regulator;
 	struct udevice 		*pcie_phy_regulator;
 #endif
@@ -1198,31 +1198,22 @@ static int imx6_pcie_init_phy(struct imx_pcie_priv *priv)
 	return 0;
 }
 
-int imx6_pcie_toggle_power(struct udevice *vpcie)
+__weak int imx6_pcie_toggle_power(void)
 {
-#ifdef CFG_PCIE_IMX_POWER_GPIO
-	gpio_request(CFG_PCIE_IMX_POWER_GPIO, "pcie_power");
-	gpio_direction_output(CFG_PCIE_IMX_POWER_GPIO, 0);
+#ifdef CONFIG_PCIE_IMX_POWER_GPIO
+	gpio_request(CONFIG_PCIE_IMX_POWER_GPIO, "pcie_power");
+	gpio_direction_output(CONFIG_PCIE_IMX_POWER_GPIO, 0);
 	mdelay(20);
-	gpio_set_value(CFG_PCIE_IMX_POWER_GPIO, 1);
+	gpio_set_value(CONFIG_PCIE_IMX_POWER_GPIO, 1);
 	mdelay(20);
-	gpio_free(CFG_PCIE_IMX_POWER_GPIO);
-#endif
-
-#if CONFIG_IS_ENABLED(DM_REGULATOR)
-	if (vpcie) {
-		regulator_set_enable(vpcie, false);
-		mdelay(20);
-		regulator_set_enable(vpcie, true);
-		mdelay(20);
-	}
+	gpio_free(CONFIG_PCIE_IMX_POWER_GPIO);
 #endif
 	return 0;
 }
 
 static int imx6_pcie_deassert_core_reset(struct imx_pcie_priv *priv)
 {
-	imx6_pcie_toggle_power(priv->vpcie);
+	imx6_pcie_toggle_power();
 
 	enable_pcie_clock();
 
@@ -1455,14 +1446,14 @@ static int imx_pcie_dm_probe(struct udevice *dev)
 	struct imx_pcie_priv *priv = dev_get_priv(dev);
 
 #if CONFIG_IS_ENABLED(DM_REGULATOR)
-	ret = device_get_supply_regulator(dev, "vpcie-supply", &priv->vpcie);
+	ret = device_get_supply_regulator(dev, "epdev_on", &priv->epdev_on);
 	if (ret) {
-		priv->vpcie = NULL;
-		dev_dbg(dev, "no vpcie supply\n");
+		priv->epdev_on = NULL;
+		dev_dbg(dev, "no epdev_on\n");
 	} else {
-		ret = regulator_set_enable(priv->vpcie, true);
+		ret = regulator_set_enable(priv->epdev_on, true);
 		if (ret) {
-			dev_err(dev, "fail to enable vpcie supply\n");
+			dev_err(dev, "fail to enable epdev_on\n");
 			return ret;
 		}
 	}

@@ -41,18 +41,10 @@ static uint rockchip_dwmmc_get_mmc_clk(struct dwmci_host *host, uint freq)
 	struct rockchip_dwmmc_priv *priv = dev_get_priv(dev);
 	int ret;
 
-	/*
-	 * The clock frequency chosen here affects CLKDIV in the dw_mmc core.
-	 * That can be either 0 or 1, but it must be set to 1 for eMMC DDR52
-	 * 8-bit mode.  It will be set to 0 for all other modes.
-	 */
-	if (host->mmc->selected_mode == MMC_DDR_52 && host->mmc->bus_width == 8)
-		freq *= 2;
-
 	ret = clk_set_rate(&priv->clk, freq);
 	if (ret < 0) {
 		debug("%s: err=%d\n", __func__, ret);
-		return 0;
+		return ret;
 	}
 
 	return freq;
@@ -127,15 +119,15 @@ static int rockchip_dwmmc_probe(struct udevice *dev)
 	host->priv = dev;
 	host->dev_index = 0;
 	priv->fifo_depth = dtplat->fifo_depth;
-	priv->fifo_mode = dtplat->u_boot_spl_fifo_mode;
+	priv->fifo_mode = 0;
 	priv->minmax[0] = 400000;  /*  400 kHz */
 	priv->minmax[1] = dtplat->max_frequency;
 
-	ret = clk_get_by_phandle(dev, &dtplat->clocks[1], &priv->clk);
+	ret = clk_get_by_phandle(dev, dtplat->clocks, &priv->clk);
 	if (ret < 0)
 		return ret;
 #else
-	ret = clk_get_by_index(dev, 1, &priv->clk);
+	ret = clk_get_by_index(dev, 0, &priv->clk);
 	if (ret < 0)
 		return ret;
 #endif
@@ -188,6 +180,5 @@ U_BOOT_DRIVER(rockchip_rk3288_dw_mshc) = {
 	.plat_auto	= sizeof(struct rockchip_mmc_plat),
 };
 
-DM_DRIVER_ALIAS(rockchip_rk3288_dw_mshc, rockchip_rk2928_dw_mshc)
 DM_DRIVER_ALIAS(rockchip_rk3288_dw_mshc, rockchip_rk3328_dw_mshc)
 DM_DRIVER_ALIAS(rockchip_rk3288_dw_mshc, rockchip_rk3368_dw_mshc)

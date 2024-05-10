@@ -28,6 +28,8 @@
 #include <linux/ctype.h>
 #include <u-boot/crc.h>
 
+#ifdef CONFIG_HAVE_BLOCK_DEVICE
+
 /* GUID for basic data partitons */
 #if CONFIG_IS_ENABLED(EFI_PARTITION)
 static const efi_guid_t partition_basic_data_guid = PARTITION_BASIC_DATA_GUID;
@@ -94,10 +96,10 @@ static int validate_gpt_header(gpt_header *gpt_h, lbaint_t lba,
 
 	/* Check the GPT header signature */
 	if (le64_to_cpu(gpt_h->signature) != GPT_HEADER_SIGNATURE_UBOOT) {
-		log_debug("%s signature is wrong: %#llX != %#llX\n",
-			  "GUID Partition Table Header",
-			  le64_to_cpu(gpt_h->signature),
-			  GPT_HEADER_SIGNATURE_UBOOT);
+		printf("%s signature is wrong: 0x%llX != 0x%llX\n",
+		       "GUID Partition Table Header",
+		       le64_to_cpu(gpt_h->signature),
+		       GPT_HEADER_SIGNATURE_UBOOT);
 		return -1;
 	}
 
@@ -111,9 +113,9 @@ static int validate_gpt_header(gpt_header *gpt_h, lbaint_t lba,
 	memcpy(&gpt_h->header_crc32, &crc32_backup, sizeof(crc32_backup));
 
 	if (calc_crc32 != le32_to_cpu(crc32_backup)) {
-		log_debug("%s: CRC is wrong: %#x != %#x\n",
-			  "GUID Partition Table Header",
-			  le32_to_cpu(crc32_backup), calc_crc32);
+		printf("%s CRC is wrong: 0x%x != 0x%x\n",
+		       "GUID Partition Table Header",
+		       le32_to_cpu(crc32_backup), calc_crc32);
 		return -1;
 	}
 
@@ -121,8 +123,9 @@ static int validate_gpt_header(gpt_header *gpt_h, lbaint_t lba,
 	 * Check that the my_lba entry points to the LBA that contains the GPT
 	 */
 	if (le64_to_cpu(gpt_h->my_lba) != lba) {
-		log_debug("GPT: my_lba incorrect: %llX != " LBAF "\n",
-			  le64_to_cpu(gpt_h->my_lba), lba);
+		printf("GPT: my_lba incorrect: %llX != " LBAF "\n",
+		       le64_to_cpu(gpt_h->my_lba),
+		       lba);
 		return -1;
 	}
 
@@ -131,13 +134,13 @@ static int validate_gpt_header(gpt_header *gpt_h, lbaint_t lba,
 	 * within the disk.
 	 */
 	if (le64_to_cpu(gpt_h->first_usable_lba) > lastlba) {
-		log_debug("GPT: first_usable_lba incorrect: %llX > " LBAF "\n",
-			  le64_to_cpu(gpt_h->first_usable_lba), lastlba);
+		printf("GPT: first_usable_lba incorrect: %llX > " LBAF "\n",
+		       le64_to_cpu(gpt_h->first_usable_lba), lastlba);
 		return -1;
 	}
 	if (le64_to_cpu(gpt_h->last_usable_lba) > lastlba) {
-		log_debug("GPT: last_usable_lba incorrect: %llX > " LBAF "\n",
-			  le64_to_cpu(gpt_h->last_usable_lba), lastlba);
+		printf("GPT: last_usable_lba incorrect: %llX > " LBAF "\n",
+		       le64_to_cpu(gpt_h->last_usable_lba), lastlba);
 		return -1;
 	}
 
@@ -177,10 +180,10 @@ static int validate_gpt_entries(gpt_header *gpt_h, gpt_entry *gpt_e)
 		le32_to_cpu(gpt_h->sizeof_partition_entry));
 
 	if (calc_crc32 != le32_to_cpu(gpt_h->partition_entry_array_crc32)) {
-		log_debug("%s: %#x != %#x\n",
-			  "GUID Partition Table Entry Array CRC is wrong",
-			  le32_to_cpu(gpt_h->partition_entry_array_crc32),
-			  calc_crc32);
+		debug("%s: 0x%x != 0x%x\n",
+		       "GUID Partition Table Entry Array CRC is wrong",
+		       le32_to_cpu(gpt_h->partition_entry_array_crc32),
+		       calc_crc32);
 		return -1;
 	}
 
@@ -261,7 +264,7 @@ void part_print_efi(struct blk_desc *dev_desc)
 			print_efiname(&gpt_pte[i]));
 		printf("\tattrs:\t0x%016llx\n", gpt_pte[i].attributes.raw);
 		uuid = (unsigned char *)gpt_pte[i].partition_type_guid.b;
-		if (IS_ENABLED(CONFIG_PARTITION_TYPE_GUID))
+		if (CONFIG_IS_ENABLED(PARTITION_TYPE_GUID))
 			printf("\ttype:\t%pUl\n\t\t(%pUs)\n", uuid, uuid);
 		else
 			printf("\ttype:\t%pUl\n", uuid);
@@ -284,21 +287,22 @@ int part_get_info_efi(struct blk_desc *dev_desc, int part,
 
 	/* "part" argument must be at least 1 */
 	if (part < 1) {
-		log_debug("Invalid Argument(s)\n");
-		return -EINVAL;
+		printf("%s: Invalid Argument(s)\n", __func__);
+		return -1;
 	}
 
 	/* This function validates AND fills in the GPT header and PTE */
 	if (find_valid_gpt(dev_desc, gpt_head, &gpt_pte) != 1)
-		return -EINVAL;
+		return -1;
 
 	if (part > le32_to_cpu(gpt_head->num_partition_entries) ||
 	    !is_pte_valid(&gpt_pte[part - 1])) {
-		log_debug("Invalid partition number %d\n", part);
+		debug("%s: *** ERROR: Invalid partition number %d ***\n",
+			__func__, part);
 #if !(defined(CONFIG_DUAL_BOOTLOADER) || defined(CONFIG_IMX_TRUSTY_OS)) || !defined(CONFIG_SPL_BUILD)
 		free(gpt_pte);
 #endif
-		return -EPERM;
+		return -1;
 	}
 
 	/* The 'lbaint_t' casting may limit the maximum disk size to 2 TB */
@@ -321,8 +325,8 @@ int part_get_info_efi(struct blk_desc *dev_desc, int part,
 			info->type_guid, UUID_STR_FORMAT_GUID);
 #endif
 
-	log_debug("start 0x" LBAF ", size 0x" LBAF ", name %s\n", info->start,
-		  info->size, info->name);
+	debug("%s: start 0x" LBAF ", size 0x" LBAF ", name %s\n", __func__,
+	      info->start, info->size, info->name);
 
 #if !(defined(CONFIG_DUAL_BOOTLOADER) || defined(CONFIG_IMX_TRUSTY_OS)) || !defined(CONFIG_SPL_BUILD)
 	/* Heap memory is very limited in SPL, if the dual bootloader is
@@ -414,15 +418,14 @@ static int set_protective_mbr(struct blk_desc *dev_desc)
 	/* Setup the Protective MBR */
 	ALLOC_CACHE_ALIGN_BUFFER_PAD(legacy_mbr, p_mbr, 1, dev_desc->blksz);
 	if (p_mbr == NULL) {
-		log_debug("calloc failed!\n");
-		return -ENOMEM;
+		printf("%s: calloc failed!\n", __func__);
+		return -1;
 	}
 
 	/* Read MBR to backup boot code if it exists */
 	if (blk_dread(dev_desc, 0, 1, p_mbr) != 1) {
-		log_debug("** Can't read from device %d **\n",
-			  dev_desc->devnum);
-		return -EIO;
+		pr_err("** Can't read from device %d **\n", dev_desc->devnum);
+		return -1;
 	}
 
 	/* Clear all data in MBR except of backed up boot code */
@@ -437,8 +440,9 @@ static int set_protective_mbr(struct blk_desc *dev_desc)
 
 	/* Write MBR sector to the MMC device */
 	if (blk_dwrite(dev_desc, 0, 1, p_mbr) != 1) {
-		log_debug("** Can't write to device %d **\n", dev_desc->devnum);
-		return -EIO;
+		printf("** Can't write to device %d **\n",
+			dev_desc->devnum);
+		return -1;
 	}
 
 	return 0;
@@ -488,8 +492,8 @@ int write_gpt_table(struct blk_desc *dev_desc,
 	return 0;
 
  err:
-	log_debug("** Can't write to device %d **\n", dev_desc->devnum);
-	return -EIO;
+	printf("** Can't write to device %d **\n", dev_desc->devnum);
+	return -1;
 }
 
 int gpt_fill_pte(struct blk_desc *dev_desc,
@@ -535,15 +539,15 @@ int gpt_fill_pte(struct blk_desc *dev_desc,
 		 */
 		if (((start < hdr_end && hdr_start < (start + size)) ||
 		     (start < pte_end && pte_start < (start + size)))) {
-			log_debug("Partition overlap\n");
-			return -ENOSPC;
+			printf("Partition overlap\n");
+			return -1;
 		}
 
 		gpt_e[i].starting_lba = cpu_to_le64(start);
 
 		if (offset > (last_usable_lba + 1)) {
-			log_debug("Partitions layout exceeds disk size\n");
-			return -E2BIG;
+			printf("Partitions layout exceds disk size\n");
+			return -1;
 		}
 		/* partition ending lba */
 		if ((i == parts - 1) && (size == 0))
@@ -558,9 +562,9 @@ int gpt_fill_pte(struct blk_desc *dev_desc,
 		if (strlen(str_type_guid)) {
 			if (uuid_str_to_bin(str_type_guid, bin_type_guid,
 					    UUID_STR_FORMAT_GUID)) {
-				log_debug("Partition no. %d: invalid type guid: %s\n",
-					  i, str_type_guid);
-				return -EINVAL;
+				printf("Partition no. %d: invalid type guid: %s\n",
+				       i, str_type_guid);
+				return -1;
 			}
 		} else {
 			/* default partition type GUID */
@@ -578,9 +582,9 @@ int gpt_fill_pte(struct blk_desc *dev_desc,
 		bin_uuid = gpt_e[i].unique_partition_guid.b;
 
 		if (uuid_str_to_bin(str_uuid, bin_uuid, UUID_STR_FORMAT_GUID)) {
-			log_debug("Partition no. %d: invalid guid: %s\n",
-				  i, str_uuid);
-			return -EINVAL;
+			printf("Partition no. %d: invalid guid: %s\n",
+				i, str_uuid);
+			return -1;
 		}
 #endif
 
@@ -692,8 +696,8 @@ int gpt_restore(struct blk_desc *dev_desc, char *str_disk_guid,
 	size = PAD_TO_BLOCKSIZE(sizeof(gpt_header), dev_desc);
 	gpt_h = malloc_cache_aligned(size);
 	if (gpt_h == NULL) {
-		log_debug("calloc failed!\n");
-		return -ENOMEM;
+		printf("%s: calloc failed!\n", __func__);
+		return -1;
 	}
 	memset(gpt_h, 0, size);
 
@@ -701,9 +705,9 @@ int gpt_restore(struct blk_desc *dev_desc, char *str_disk_guid,
 				dev_desc);
 	gpt_e = malloc_cache_aligned(size);
 	if (gpt_e == NULL) {
-		log_debug("calloc failed!\n");
+		printf("%s: calloc failed!\n", __func__);
 		free(gpt_h);
-		return -ENOMEM;
+		return -1;
 	}
 	memset(gpt_e, 0, size);
 
@@ -759,7 +763,8 @@ int gpt_verify_headers(struct blk_desc *dev_desc, gpt_header *gpt_head,
 	if (is_gpt_valid(dev_desc,
 			 GPT_PRIMARY_PARTITION_TABLE_LBA,
 			 gpt_head, gpt_pte) != 1) {
-		log_debug("Invalid GPT\n");
+		printf("%s: *** ERROR: Invalid GPT ***\n",
+		       __func__);
 		return -1;
 	}
 
@@ -770,103 +775,19 @@ int gpt_verify_headers(struct blk_desc *dev_desc, gpt_header *gpt_head,
 	 * Check that the alternate_lba entry points to the last LBA
 	 */
 	if (le64_to_cpu(gpt_head->alternate_lba) != (dev_desc->lba - 1)) {
-		log_debug("Misplaced Backup GPT\n");
+		printf("%s: *** ERROR: Misplaced Backup GPT ***\n",
+		       __func__);
 		return -1;
 	}
 
 	if (is_gpt_valid(dev_desc, (dev_desc->lba - 1),
 			 gpt_head, gpt_pte) != 1) {
-		log_debug("Invalid Backup GPT\n");
+		printf("%s: *** ERROR: Invalid Backup GPT ***\n",
+		       __func__);
 		return -1;
 	}
 
 	return 0;
-}
-
-static void restore_primary_gpt_header(gpt_header *gpt_h, struct blk_desc *dev_desc)
-{
-	u32 calc_crc32;
-	u64 val;
-
-	/* recalculate the values for the Primary GPT Header */
-	val = le64_to_cpu(gpt_h->my_lba);
-	gpt_h->my_lba = gpt_h->alternate_lba;
-	gpt_h->alternate_lba = cpu_to_le64(val);
-	gpt_h->partition_entry_lba = cpu_to_le64(partition_entries_offset(dev_desc));
-
-	gpt_h->header_crc32 = 0;
-
-	calc_crc32 = efi_crc32((const unsigned char *)gpt_h,
-			       le32_to_cpu(gpt_h->header_size));
-	gpt_h->header_crc32 = cpu_to_le32(calc_crc32);
-}
-
-static int write_one_gpt_table(struct blk_desc *dev_desc,
-			       gpt_header *gpt_h, gpt_entry *gpt_e)
-{
-	const int pte_blk_cnt = BLOCK_CNT((gpt_h->num_partition_entries
-					   * sizeof(gpt_entry)), dev_desc);
-	lbaint_t start;
-	int ret = 0;
-
-	start = le64_to_cpu(gpt_h->my_lba);
-	if (blk_dwrite(dev_desc, start, 1, gpt_h) != 1) {
-		ret = -1;
-		goto out;
-	}
-
-	start = le64_to_cpu(gpt_h->partition_entry_lba);
-	if (blk_dwrite(dev_desc, start, pte_blk_cnt, gpt_e) != pte_blk_cnt) {
-		ret = -1;
-		goto out;
-	}
-
- out:
-	return ret;
-}
-
-int gpt_repair_headers(struct blk_desc *dev_desc)
-{
-	ALLOC_CACHE_ALIGN_BUFFER_PAD(gpt_header, gpt_h1, 1, dev_desc->blksz);
-	ALLOC_CACHE_ALIGN_BUFFER_PAD(gpt_header, gpt_h2, 1, dev_desc->blksz);
-	gpt_entry *gpt_e1 = NULL, *gpt_e2 = NULL;
-	int is_gpt1_valid, is_gpt2_valid;
-	int ret = -1;
-
-	is_gpt1_valid = is_gpt_valid(dev_desc, GPT_PRIMARY_PARTITION_TABLE_LBA,
-				     gpt_h1, &gpt_e1);
-	is_gpt2_valid = is_gpt_valid(dev_desc, dev_desc->lba - 1,
-				     gpt_h2, &gpt_e2);
-
-	if (is_gpt1_valid && is_gpt2_valid) {
-		ret = 0;
-		goto out;
-	}
-
-	if (is_gpt1_valid && !is_gpt2_valid) {
-		prepare_backup_gpt_header(gpt_h1);
-		ret = write_one_gpt_table(dev_desc, gpt_h1, gpt_e1);
-		goto out;
-	}
-
-	if (!is_gpt1_valid && is_gpt2_valid) {
-		restore_primary_gpt_header(gpt_h2, dev_desc);
-		ret = write_one_gpt_table(dev_desc, gpt_h2, gpt_e2);
-		goto out;
-	}
-
-	if (!is_gpt1_valid && !is_gpt2_valid) {
-		ret = -1;
-		goto out;
-	}
-
- out:
-	if (is_gpt1_valid)
-		free(gpt_e1);
-	if (is_gpt2_valid)
-		free(gpt_e2);
-
-	return ret;
 }
 
 int gpt_verify_partitions(struct blk_desc *dev_desc,
@@ -994,8 +915,8 @@ int write_mbr_and_gpt_partitions(struct blk_desc *dev_desc, void *buf)
 	lba = 0;	/* MBR is always at 0 */
 	cnt = 1;	/* MBR (1 block) */
 	if (blk_dwrite(dev_desc, lba, cnt, buf) != cnt) {
-		log_debug("failed writing '%s' (%d blks at 0x" LBAF ")\n",
-			  "MBR", cnt, lba);
+		printf("%s: failed writing '%s' (%d blks at 0x" LBAF ")\n",
+		       __func__, "MBR", cnt, lba);
 		return 1;
 	}
 
@@ -1003,16 +924,16 @@ int write_mbr_and_gpt_partitions(struct blk_desc *dev_desc, void *buf)
 	lba = GPT_PRIMARY_PARTITION_TABLE_LBA;
 	cnt = 1;	/* GPT Header (1 block) */
 	if (blk_dwrite(dev_desc, lba, cnt, gpt_h) != cnt) {
-		log_debug("failed writing '%s' (%d blks at 0x" LBAF ")\n",
-			  "Primary GPT Header", cnt, lba);
+		printf("%s: failed writing '%s' (%d blks at 0x" LBAF ")\n",
+		       __func__, "Primary GPT Header", cnt, lba);
 		return 1;
 	}
 
 	lba = le64_to_cpu(gpt_h->partition_entry_lba);
 	cnt = gpt_e_blk_cnt;
 	if (blk_dwrite(dev_desc, lba, cnt, gpt_e) != cnt) {
-		log_debug("failed writing '%s' (%d blks at 0x" LBAF ")\n",
-			  "Primary GPT Entries", cnt, lba);
+		printf("%s: failed writing '%s' (%d blks at 0x" LBAF ")\n",
+		       __func__, "Primary GPT Entries", cnt, lba);
 		return 1;
 	}
 
@@ -1022,16 +943,16 @@ int write_mbr_and_gpt_partitions(struct blk_desc *dev_desc, void *buf)
 	lba = le64_to_cpu(gpt_h->partition_entry_lba);
 	cnt = gpt_e_blk_cnt;
 	if (blk_dwrite(dev_desc, lba, cnt, gpt_e) != cnt) {
-		log_debug("failed writing '%s' (%d blks at 0x" LBAF ")\n",
-			  "Backup GPT Entries", cnt, lba);
+		printf("%s: failed writing '%s' (%d blks at 0x" LBAF ")\n",
+		       __func__, "Backup GPT Entries", cnt, lba);
 		return 1;
 	}
 
 	lba = le64_to_cpu(gpt_h->my_lba);
 	cnt = 1;	/* GPT Header (1 block) */
 	if (blk_dwrite(dev_desc, lba, cnt, gpt_h) != cnt) {
-		log_debug("failed writing '%s' (%d blks at 0x" LBAF ")\n",
-			  "Backup GPT Header", cnt, lba);
+		printf("%s: failed writing '%s' (%d blks at 0x" LBAF ")\n",
+		       __func__, "Backup GPT Header", cnt, lba);
 		return 1;
 	}
 
@@ -1150,7 +1071,7 @@ static int is_gpt_valid(struct blk_desc *dev_desc, u64 lba,
 {
 	/* Confirm valid arguments prior to allocation. */
 	if (!dev_desc || !pgpt_head) {
-		log_debug("Invalid Argument(s)\n");
+		printf("%s: Invalid Argument(s)\n", __func__);
 		return 0;
 	}
 
@@ -1158,19 +1079,19 @@ static int is_gpt_valid(struct blk_desc *dev_desc, u64 lba,
 
 	/* Read MBR Header from device */
 	if (blk_dread(dev_desc, 0, 1, (ulong *)mbr) != 1) {
-		log_debug("Can't read MBR header\n");
+		printf("*** ERROR: Can't read MBR header ***\n");
 		return 0;
 	}
 
 	/* Read GPT Header from device */
 	if (blk_dread(dev_desc, (lbaint_t)lba, 1, pgpt_head) != 1) {
-		log_debug("Can't read GPT header\n");
+		printf("*** ERROR: Can't read GPT header ***\n");
 		return 0;
 	}
 
 	/* Invalid but nothing to yell about. */
 	if (le64_to_cpu(pgpt_head->signature) == GPT_HEADER_CHROMEOS_IGNORE) {
-		log_debug("ChromeOS 'IGNOREME' GPT header found and ignored\n");
+		debug("ChromeOS 'IGNOREME' GPT header found and ignored\n");
 		return 2;
 	}
 
@@ -1191,8 +1112,10 @@ static int is_gpt_valid(struct blk_desc *dev_desc, u64 lba,
 
 	/* Read and allocate Partition Table Entries */
 	*pgpt_pte = alloc_read_gpt_entries(dev_desc, pgpt_head);
-	if (!*pgpt_pte)
+	if (*pgpt_pte == NULL) {
+		printf("GPT: Failed to allocate memory for PTE\n");
 		return 0;
+	}
 
 	if (validate_gpt_entries(pgpt_head, *pgpt_pte)) {
 		free(*pgpt_pte);
@@ -1222,15 +1145,17 @@ static int find_valid_gpt(struct blk_desc *dev_desc, gpt_header *gpt_head,
 
 	if (r != 1) {
 		if (r != 2)
-			log_debug("Invalid GPT\n");
+			debug("%s: *** ERROR: Invalid GPT ***\n", __func__);
 
 		if (is_gpt_valid(dev_desc, (dev_desc->lba - 1), gpt_head,
 				 pgpt_pte) != 1) {
-			log_debug("Invalid Backup GPT\n");
+			printf("%s: *** ERROR: Invalid Backup GPT ***\n",
+			       __func__);
 			return 0;
 		}
 		if (r != 2)
-			log_debug("        Using Backup GPT\n");
+			debug("%s: ***        Using Backup GPT ***\n",
+			       __func__);
 	}
 	return 1;
 }
@@ -1252,17 +1177,17 @@ static gpt_entry *alloc_read_gpt_entries(struct blk_desc *dev_desc,
 	gpt_entry *pte = NULL;
 
 	if (!dev_desc || !pgpt_head) {
-		log_debug("Invalid Argument(s)\n");
+		printf("%s: Invalid Argument(s)\n", __func__);
 		return NULL;
 	}
 
 	count = le32_to_cpu(pgpt_head->num_partition_entries) *
 		le32_to_cpu(pgpt_head->sizeof_partition_entry);
 
-	log_debug("count = %u * %u = %lu\n",
-		  (u32)le32_to_cpu(pgpt_head->num_partition_entries),
-		  (u32)le32_to_cpu(pgpt_head->sizeof_partition_entry),
-		  (ulong)count);
+	debug("%s: count = %u * %u = %lu\n", __func__,
+	      (u32) le32_to_cpu(pgpt_head->num_partition_entries),
+	      (u32) le32_to_cpu(pgpt_head->sizeof_partition_entry),
+	      (ulong)count);
 
 	/* Allocate memory for PTE.
 	 * Heap memory is very limited in SPL, if the dual bootloader is
@@ -1271,8 +1196,8 @@ static gpt_entry *alloc_read_gpt_entries(struct blk_desc *dev_desc,
 	 * don't forget to free the memory after use.
 	 */
 	if (count != 0) {
-#if (defined(CONFIG_DUAL_BOOTLOADER) || defined(CONFIG_IMX_TRUSTY_OS)) && defined(CONFIG_SPL_BUILD) && !defined(CONFIG_IMX_MATTER_TRUSTY)
-		pte = (gpt_entry *)CFG_SYS_SPL_PTE_RAM_BASE;
+#if (defined(CONFIG_DUAL_BOOTLOADER) || defined(CONFIG_IMX_TRUSTY_OS)) && defined(CONFIG_SPL_BUILD)
+		pte = (gpt_entry *)CONFIG_SYS_SPL_PTE_RAM_BASE;
 #else
 		pte = memalign(ARCH_DMA_MINALIGN,
 			       PAD_TO_BLOCKSIZE(count, dev_desc));
@@ -1280,8 +1205,8 @@ static gpt_entry *alloc_read_gpt_entries(struct blk_desc *dev_desc,
 	}
 
 	if (count == 0 || pte == NULL) {
-		log_debug("ERROR: Can't allocate %#lX bytes for GPT Entries\n",
-			  (ulong)count);
+		printf("%s: ERROR: Can't allocate %#lX bytes for GPT Entries\n",
+		       __func__, (ulong)count);
 		return NULL;
 	}
 
@@ -1289,7 +1214,7 @@ static gpt_entry *alloc_read_gpt_entries(struct blk_desc *dev_desc,
 	blk = le64_to_cpu(pgpt_head->partition_entry_lba);
 	blk_cnt = BLOCK_CNT(count, dev_desc);
 	if (blk_dread(dev_desc, blk, (lbaint_t)blk_cnt, pte) != blk_cnt) {
-		log_debug("Can't read GPT Entries\n");
+		printf("*** ERROR: Can't read GPT Entries ***\n");
 #if !(defined(CONFIG_DUAL_BOOTLOADER) || defined(CONFIG_IMX_TRUSTY_OS)) || !defined(CONFIG_SPL_BUILD)
 		free(pte);
 #endif
@@ -1309,7 +1234,7 @@ static int is_pte_valid(gpt_entry * pte)
 	efi_guid_t unused_guid;
 
 	if (!pte) {
-		log_debug("Invalid Argument(s)\n");
+		printf("%s: Invalid Argument(s)\n", __func__);
 		return 0;
 	}
 
@@ -1321,8 +1246,8 @@ static int is_pte_valid(gpt_entry * pte)
 	if (memcmp(pte->partition_type_guid.b, unused_guid.b,
 		sizeof(unused_guid.b)) == 0) {
 
-		log_debug("Found an unused PTE GUID at 0x%08X\n",
-			  (unsigned int)(uintptr_t)pte);
+		debug("%s: Found an unused PTE GUID at 0x%08X\n", __func__,
+		      (unsigned int)(uintptr_t)pte);
 
 		return 0;
 	} else {
@@ -1343,3 +1268,4 @@ U_BOOT_PART_TYPE(a_efi) = {
 	.print		= part_print_ptr(part_print_efi),
 	.test		= part_test_efi,
 };
+#endif /* CONFIG_HAVE_BLOCK_DEVICE */

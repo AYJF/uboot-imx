@@ -27,7 +27,7 @@
 	flash: is25lp128@1 {
 		#address-cells = <1>;
 		#size-cells = <1>;
-		compatible = "jedec,spi-nor";
+		compatible = "spi-flash";
 		spi-max-frequency = <60000000>;
 		reg = <1>;
 	};

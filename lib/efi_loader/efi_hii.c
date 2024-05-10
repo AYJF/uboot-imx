@@ -758,9 +758,6 @@ set_keyboard_layout(const struct efi_hii_database_protocol *this,
 {
 	EFI_ENTRY("%p, %pUs", this, key_guid);
 
-	if (!key_guid)
-		return EFI_EXIT(EFI_INVALID_PARAMETER);
-
 	return EFI_EXIT(EFI_NOT_FOUND);
 }
 
@@ -783,7 +780,7 @@ get_package_list_handle(const struct efi_hii_database_protocol *this,
 		}
 	}
 
-	return EFI_EXIT(EFI_INVALID_PARAMETER);
+	return EFI_EXIT(EFI_NOT_FOUND);
 }
 
 const struct efi_hii_database_protocol efi_hii_database = {
@@ -903,7 +900,7 @@ get_string(const struct efi_hii_string_protocol *this,
 
 			str = stbl->strings[string_id - 1].string;
 			if (str) {
-				len = u16_strsize(str);
+				len = (u16_strlen(str) + 1) * sizeof(u16);
 				if (*string_size < len) {
 					*string_size = len;
 

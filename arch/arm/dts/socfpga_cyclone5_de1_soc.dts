@@ -75,7 +75,6 @@
 };
 
 &uart0 {
-	clock-frequency = <100000000>;
 	u-boot,dm-pre-reloc;
 };
 

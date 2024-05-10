@@ -25,7 +25,6 @@ trying to get it to work optimally on a given system.
    :maxdepth: 2
 
    build/index
-   learn/index
    usage/index
 
 Developer-oriented documentation

@@ -9,10 +9,9 @@ config SYS_VENDOR
 config SYS_CONFIG_NAME
 	default "imx8mn_var_som"
 
-config IMX8MN_FORCE_NOM_SOC
-	bool "Force to use nominal mode for SOC and ARM"
-	default n
+config IMX_CONFIG
+	default "board/variscite/imx8mn_var_som/imximage-8mn-ddr4.cfg"
 
-source "board/variscite/common/Kconfig"
+source "board/freescale/common/Kconfig"
 
 endif

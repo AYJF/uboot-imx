@@ -30,15 +30,13 @@ config R8A7795
 	bool "Renesas SoC R8A7795"
 	select GICV2
 	imply CLK_R8A7795
-	imply PINCTRL_PFC_R8A77951
+	imply PINCTRL_PFC_R8A7795
 
 config R8A7796
 	bool "Renesas SoC R8A7796"
 	select GICV2
-	imply CLK_R8A77960
-	imply CLK_R8A77961
-	imply PINCTRL_PFC_R8A77960
-	imply PINCTRL_PFC_R8A77961
+	imply CLK_R8A7796
+	imply PINCTRL_PFC_R8A7796
 
 config R8A77965
 	bool "Renesas SoC R8A77965"
@@ -200,8 +198,5 @@ config MULTI_DTB_FIT_USER_DEF_ADDR
 
 config SYS_MALLOC_F_LEN
 	default 0x8000 if RCAR_GEN3
-
-config DM_RESET
-	default y if RCAR_GEN3
 
 endif

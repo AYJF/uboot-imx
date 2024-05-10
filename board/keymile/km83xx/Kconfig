@@ -6,6 +6,7 @@ config KM_ENABLE_FULL_DM_DTS_SUPPORT
 	default y
 	select CMD_DM
 	select DM
+	select DM_ETH
 	select DM_MDIO
 	select DM_SERIAL
 	select OF_CONTROL
@@ -60,6 +61,25 @@ config BOARD_SPECIFIC_OPTIONS # dummy
 
 endif
 
+if TARGET_KMTEGR1
+
+config SYS_BOARD
+	default "km83xx"
+
+config SYS_VENDOR
+	default "keymile"
+
+config SYS_CONFIG_NAME
+	default "kmtegr1"
+
+config BOARD_SPECIFIC_OPTIONS # dummy
+	def_bool y
+	select ARCH_MPC8309
+	imply CMD_CRAMFS
+	imply FS_CRAMFS
+
+endif
+
 if TARGET_TUXX1
 
 config SYS_BOARD
@@ -69,7 +89,7 @@ config SYS_VENDOR
 	default "keymile"
 
 config SYS_CONFIG_NAME
-	default "km832x"
+	default "tuxx1"
 
 config BOARD_SPECIFIC_OPTIONS # dummy
 	def_bool y
@@ -88,7 +108,7 @@ config SYS_VENDOR
 	default "keymile"
 
 config SYS_CONFIG_NAME
-	default "km832x"
+	default "kmsupx5"
 
 config BOARD_SPECIFIC_OPTIONS # dummy
 	def_bool y
@@ -107,7 +127,7 @@ config SYS_VENDOR
 	default "keymile"
 
 config SYS_CONFIG_NAME
-	default "km832x"
+	default "tuge1"
 
 config BOARD_SPECIFIC_OPTIONS # dummy
 	def_bool y
@@ -126,7 +146,7 @@ config SYS_VENDOR
 	default "keymile"
 
 config SYS_CONFIG_NAME
-	default "km832x"
+	default "kmopti2"
 
 config BOARD_SPECIFIC_OPTIONS # dummy
 	def_bool y
@@ -145,7 +165,7 @@ config SYS_VENDOR
 	default "keymile"
 
 config SYS_CONFIG_NAME
-	default "km832x"
+	default "kmtepr2"
 
 config BOARD_SPECIFIC_OPTIONS # dummy
 	def_bool y

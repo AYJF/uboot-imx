@@ -15,7 +15,6 @@
 #include <command.h>
 #endif
 #include <linux/delay.h>
-#include <stdio.h>
 
 static void panic_finish(void) __attribute__ ((noreturn));
 
@@ -25,8 +24,7 @@ static void panic_finish(void)
 #if defined(CONFIG_PANIC_HANG)
 	hang();
 #else
-	flush();  /* flush the panic message before reset */
-
+	udelay(100000);	/* allow messages to go out */
 	do_reset(NULL, 0, 0, NULL);
 #endif
 	while (1)

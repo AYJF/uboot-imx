@@ -4,10 +4,15 @@
  */
 
 #include <common.h>
-#include <command.h>
 #include <log.h>
+#include <asm/io.h>
+#include <asm/mach-imx/sys_proto.h>
+#include <command.h>
+#include <elf.h>
 #include <imx_sip.h>
 #include <linux/arm-smccc.h>
+#include <linux/compiler.h>
+#include <cpu_func.h>
 #include <asm/mach-imx/ahab.h>
 
 #include <asm/global_data.h>
@@ -303,7 +308,7 @@ static int do_stopaux(struct cmd_tbl *cmdtp, int flag, int argc,
 
 U_BOOT_CMD(
 	stopaux, CONFIG_SYS_MAXARGS, 1,	do_stopaux,
-	"Stop auxiliary core",
+	"Start auxiliary core",
 	"<address> [<core>]\n"
 	"   - start auxiliary core [<core>] (default 0),\n"
 	"     at address <address>\n"

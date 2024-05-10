@@ -30,14 +30,6 @@
 #define FPGA_TIMEOUT_MSEC	1000  /* timeout in ms */
 #define FPGA_TIMEOUT_CNT	0x1000000
 #define DEFAULT_DDR_LOAD_ADDRESS	0x400
-#define DDR_BUFFER_SIZE		0x100000
-
-/* When reading bitstream from a filesystem, the size of the first read is
- * changed so that the subsequent reads are aligned to this value. This value
- * was chosen so that in subsequent reads the fat fs driver doesn't have to
- * allocate a temporary buffer in get_contents (assuming 8KiB clusters).
- */
-#define MAX_FIRST_LOAD_SIZE	0x2000
 
 DECLARE_GLOBAL_DATA_PTR;
 
@@ -77,13 +69,6 @@ static int wait_for_user_mode(void)
 {
 	return wait_for_bit_le32(&fpga_manager_base->imgcfg_stat,
 		ALT_FPGAMGR_IMGCFG_STAT_F2S_USERMODE_SET_MSK,
-		1, FPGA_TIMEOUT_MSEC, false);
-}
-
-static int wait_for_fifo_empty(void)
-{
-	return wait_for_bit_le32(&fpga_manager_base->imgcfg_stat,
-		ALT_FPGAMGR_IMGCFG_STAT_F2S_IMGCFG_FIFOEMPTY_SET_MSK,
 		1, FPGA_TIMEOUT_MSEC, false);
 }
 
@@ -383,7 +368,7 @@ static int fpgamgr_program_poll_cd(void)
 			printf("nstatus == 0 while waiting for condone\n");
 			return -EPERM;
 		}
-		schedule();
+		WATCHDOG_RESET();
 	}
 
 	if (i == FPGA_TIMEOUT_CNT)
@@ -534,15 +519,14 @@ static void get_rbf_image_info(struct rbf_info *rbf, u16 *buffer)
 		rbf->section = unknown;
 		break;
 
-		schedule();
+		WATCHDOG_RESET();
 	}
 }
 
 #ifdef CONFIG_FS_LOADER
 static int first_loading_rbf_to_buffer(struct udevice *dev,
 				struct fpga_loadfs_info *fpga_loadfs,
-				u32 *buffer, size_t *buffer_bsize,
-				size_t *buffer_bsize_ori)
+				u32 *buffer, size_t *buffer_bsize)
 {
 	u32 *buffer_p = (u32 *)*buffer;
 	u32 *loadable = buffer_p;
@@ -555,14 +539,14 @@ static int first_loading_rbf_to_buffer(struct udevice *dev,
 	/* Load image header into buffer */
 	ret = request_firmware_into_buf(dev,
 					fpga_loadfs->fpga_fsinfo->filename,
-					buffer_p, sizeof(struct legacy_img_hdr),
+					buffer_p, sizeof(struct image_header),
 					0);
 	if (ret < 0) {
 		debug("FPGA: Failed to read image header from flash.\n");
 		return -ENOENT;
 	}
 
-	if (image_get_magic((struct legacy_img_hdr *)buffer_p) != FDT_MAGIC) {
+	if (image_get_magic((struct image_header *)buffer_p) != FDT_MAGIC) {
 		debug("FPGA: No FDT magic was found.\n");
 		return -EBADF;
 	}
@@ -635,7 +619,7 @@ static int first_loading_rbf_to_buffer(struct udevice *dev,
 				break;
 			}
 		}
-		schedule();
+		WATCHDOG_RESET();
 	}
 
 	if (!fpga_node_name) {
@@ -690,7 +674,6 @@ static int first_loading_rbf_to_buffer(struct udevice *dev,
 		}
 
 		buffer_size = rbf_size;
-		*buffer_bsize_ori = DDR_BUFFER_SIZE;
 	}
 
 	debug("FPGA: External data: offset = 0x%x, size = 0x%x.\n",
@@ -703,16 +686,11 @@ static int first_loading_rbf_to_buffer(struct udevice *dev,
 	 * chunk by chunk transfer is required due to smaller buffer size
 	 * compare to bitstream
 	 */
-
-	if (buffer_size > MAX_FIRST_LOAD_SIZE)
-		buffer_size = MAX_FIRST_LOAD_SIZE;
-
 	if (rbf_size <= buffer_size) {
 		/* Loading whole bitstream into buffer */
 		buffer_size = rbf_size;
 		fpga_loadfs->remaining = 0;
 	} else {
-		buffer_size -= rbf_offset % buffer_size;
 		fpga_loadfs->remaining -= buffer_size;
 	}
 
@@ -777,20 +755,42 @@ int socfpga_loadfs(fpga_fs_info *fpga_fsinfo, const void *buf, size_t bsize,
 {
 	struct fpga_loadfs_info fpga_loadfs;
 	struct udevice *dev;
-	int status, ret;
+	int status, ret, size;
 	u32 buffer = (uintptr_t)buf;
 	size_t buffer_sizebytes = bsize;
 	size_t buffer_sizebytes_ori = bsize;
 	size_t total_sizeof_image = 0;
 	ofnode node;
+	const fdt32_t *phandle_p;
+	u32 phandle;
 
 	node = get_fpga_mgr_ofnode(ofnode_null());
-	if (!ofnode_valid(node)) {
+
+	if (ofnode_valid(node)) {
+		phandle_p = ofnode_get_property(node, "firmware-loader", &size);
+		if (!phandle_p) {
+			node = ofnode_path("/chosen");
+			if (!ofnode_valid(node)) {
+				debug("FPGA: /chosen node was not found.\n");
+				return -ENOENT;
+			}
+
+			phandle_p = ofnode_get_property(node, "firmware-loader",
+						       &size);
+			if (!phandle_p) {
+				debug("FPGA: firmware-loader property was not");
+				debug(" found.\n");
+				return -ENOENT;
+			}
+		}
+	} else {
 		debug("FPGA: FPGA manager node was not found.\n");
 		return -ENOENT;
 	}
 
-	ret = get_fs_loader(&dev);
+	phandle = fdt32_to_cpu(*phandle_p);
+	ret = uclass_get_device_by_phandle_id(UCLASS_FS_FIRMWARE_LOADER,
+					     phandle, &dev);
 	if (ret)
 		return ret;
 
@@ -806,8 +806,7 @@ int socfpga_loadfs(fpga_fs_info *fpga_fsinfo, const void *buf, size_t bsize,
 	 * function below.
 	 */
 	ret = first_loading_rbf_to_buffer(dev, &fpga_loadfs, &buffer,
-					   &buffer_sizebytes,
-					   &buffer_sizebytes_ori);
+					   &buffer_sizebytes);
 	if (ret == 1) {
 		printf("FPGA: Skipping configuration ...\n");
 		return 0;
@@ -857,9 +856,8 @@ int socfpga_loadfs(fpga_fs_info *fpga_fsinfo, const void *buf, size_t bsize,
 
 		total_sizeof_image += buffer_sizebytes_ori;
 
-		schedule();
+		WATCHDOG_RESET();
 	}
-	wait_for_fifo_empty();
 
 	if (fpga_loadfs.rbfinfo.section == periph_section) {
 		if (fpgamgr_wait_early_user_mode() != -ETIMEDOUT) {

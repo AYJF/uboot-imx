@@ -6,19 +6,12 @@
 #ifndef _TIMER_H_
 #define _TIMER_H_
 
-#define timer_get_ops(dev)	((struct timer_ops *)(dev)->driver->ops)
-
 /**
- * dm_timer_init() - set up a timer for time keeping
+ * dm_timer_init() - initialize a timer for time keeping. On success
+ * initializes gd->timer so that lib/timer can use it for future
+ * referrence.
  *
- * Sets up gd->timer if the device is not already bound, making sure it is
- * probed and ready for use
- *
- * On success, inits gd->timer so that lib/timer can use it for future reference
- *
- * Returns: 0 on success, -EAGAIN if driver model is not ready yet, -ENODEV if
- * no timer could be found, other error if the timer could not be bound or
- * probed
+ * Return: 0 on success or error number
  */
 int dm_timer_init(void);
 

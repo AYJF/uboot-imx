@@ -15,19 +15,31 @@
 #include <linux/sizes.h>
 
 /* SPL */
+#define CONFIG_SPL_STACK		0x20000
 
-#define CFG_SYS_SPI_KERNEL_OFFS	SZ_1M
-#define CFG_SYS_SPI_ARGS_OFFS	SZ_512K
-#define CFG_SYS_SPI_ARGS_SIZE	SZ_32K
+#define CONFIG_SYS_SPL_ARGS_ADDR	0x44000000
+
+#define CONFIG_SYS_SPI_KERNEL_OFFS	SZ_1M
+#define CONFIG_SYS_SPI_ARGS_OFFS	SZ_512K
+#define CONFIG_SYS_SPI_ARGS_SIZE	SZ_32K
+
+#define CONFIG_SYS_MMCSD_RAW_MODE_ARGS_SECTOR	(SZ_512K / 0x200)
+#define CONFIG_SYS_MMCSD_RAW_MODE_ARGS_SECTORS	(SZ_32K / 0x200)
 
 /* Memory configuration */
 #define PHYS_SDRAM_1			0x40000000	/* Base address */
 #define PHYS_SDRAM_1_SIZE		0x10000000	/* Max 256 MB RAM */
-#define CFG_SYS_SDRAM_BASE		PHYS_SDRAM_1
+#define CONFIG_SYS_SDRAM_BASE		PHYS_SDRAM_1
+
+/* Environment */
+
+/* Booting Linux */
+#define CONFIG_BOOTFILE		"uImage"
 
 /* Extra Environment */
+#define CONFIG_HOSTNAME		"xea"
 
-#define CFG_EXTRA_ENV_SETTINGS					\
+#define CONFIG_EXTRA_ENV_SETTINGS					\
 	"bootmode=update\0"						\
 	"bootpri=mmc_mmc\0"						\
 	"bootsec=sf_swu\0"						\

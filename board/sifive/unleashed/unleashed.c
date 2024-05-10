@@ -27,7 +27,7 @@
 
 #ifdef CONFIG_MISC_INIT_R
 
-#if IS_ENABLED(CONFIG_SIFIVE_OTP)
+#if CONFIG_IS_ENABLED(SIFIVE_OTP)
 static u32 otp_read_serialnum(struct udevice *dev)
 {
 	int ret;
@@ -53,7 +53,7 @@ static u32 fu540_read_serialnum(void)
 {
 	u32 serial = ERROR_READING_SERIAL_NUMBER;
 
-#if IS_ENABLED(CONFIG_SIFIVE_OTP)
+#if CONFIG_IS_ENABLED(SIFIVE_OTP)
 	struct udevice *dev;
 	int ret;
 

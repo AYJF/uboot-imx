@@ -134,25 +134,19 @@ unsigned int lpddr4_mr_read(unsigned int mr_rank, unsigned int mr_addr)
 		tmp = reg32_read(DRC_PERF_MON_MRR0_DAT(0));
 	} while ((tmp & 0x8) == 0);
 	tmp = reg32_read(DRC_PERF_MON_MRR1_DAT(0));
+	tmp = tmp & 0xff;
 	reg32_write(DRC_PERF_MON_MRR0_DAT(0), 0x4);
-	while (tmp) { //try to find a significant byte in the word
-		if (tmp & 0xff) {
-			tmp &= 0xff;
-			break;
-		}
-		tmp >>= 8;
-	}
 
 	return tmp;
 }
 
-static unsigned int look_for_max(unsigned int data[], unsigned int addr_start,
-				 unsigned int addr_end)
+static unsigned int look_for_max(unsigned int data[],
+			  unsigned int addr_start, unsigned int addr_end)
 {
 	unsigned int i, imax = 0;
 
 	for (i = addr_start; i <= addr_end; i++) {
-		if (((data[i] >> 7) == 0) && data[i] > imax)
+		if (((data[i] >> 7) == 0) && (data[i] > imax))
 			imax = data[i];
 	}
 
@@ -194,14 +188,10 @@ void get_trained_CDD(u32 fsp)
 		cdd_chb_rw_max = look_for_max(cdd_chb, 2, 5);
 		cdd_chb_wr_max = look_for_max(cdd_chb, 6, 9);
 		cdd_chb_ww_max = look_for_max(cdd_chb, 10, 11);
-		g_cdd_rr_max[fsp] =
-			cdd_cha_rr_max > cdd_chb_rr_max ? cdd_cha_rr_max : cdd_chb_rr_max;
-		g_cdd_rw_max[fsp] =
-			cdd_cha_rw_max > cdd_chb_rw_max ? cdd_cha_rw_max : cdd_chb_rw_max;
-		g_cdd_wr_max[fsp] =
-			cdd_cha_wr_max > cdd_chb_wr_max ? cdd_cha_wr_max : cdd_chb_wr_max;
-		g_cdd_ww_max[fsp] =
-			cdd_cha_ww_max > cdd_chb_ww_max ? cdd_cha_ww_max : cdd_chb_ww_max;
+		g_cdd_rr_max[fsp] =  cdd_cha_rr_max > cdd_chb_rr_max ? cdd_cha_rr_max : cdd_chb_rr_max;
+		g_cdd_rw_max[fsp] =  cdd_cha_rw_max > cdd_chb_rw_max ? cdd_cha_rw_max : cdd_chb_rw_max;
+		g_cdd_wr_max[fsp] =  cdd_cha_wr_max > cdd_chb_wr_max ? cdd_cha_wr_max : cdd_chb_wr_max;
+		g_cdd_ww_max[fsp] =  cdd_cha_ww_max > cdd_chb_ww_max ? cdd_cha_ww_max : cdd_chb_ww_max;
 	} else {
 		unsigned int ddr4_cdd[64];
 
@@ -272,9 +262,7 @@ void update_umctl2_rank_space_setting(unsigned int pstat_num)
 		}
 
 		if (!is_imx8mq()) {
-			/*
-			 * update rankctl: wr_gap:11:8; rd:gap:7:4; quasi-dymic, doc wrong(static)
-			 */
+			/* update rankctl: wr_gap:11:8; rd:gap:7:4; quasi-dymic, doc wrong(static) */
 			rdata = reg32_read(DDRC_RANKCTL(0) + addr_slot);
 			ddrc_wr_gap = (rdata >> 8) & 0xf;
 			if (is_imx8mp())
@@ -316,7 +304,7 @@ int ddr_init(struct dram_timing_info *dram_timing)
 	unsigned int tmp, initial_drate, target_freq;
 	int ret;
 
-	debug("DDRINFO: start DRAM init\n");
+	printf("DDRINFO: start DRAM init\n");
 
 	/* Step1: Follow the power up procedure */
 	if (is_imx8mq()) {
@@ -339,7 +327,7 @@ int ddr_init(struct dram_timing_info *dram_timing)
 
 	initial_drate = dram_timing->fsp_msg[0].drate;
 	/* default to the frequency point 0 clock */
-	debug("DDRINFO: DRAM rate %dMTS\n", initial_drate);
+	printf("DDRINFO: DRAM rate %dMTS\n", initial_drate);
 	ddrphy_init_set_dfi_clk(initial_drate);
 
 	/* D-aasert the presetn */
@@ -406,7 +394,7 @@ int ddr_init(struct dram_timing_info *dram_timing)
 		tmp = reg32_read(DDRPHY_CalBusy(0));
 	} while ((tmp & 0x1));
 
-	debug("DDRINFO:ddrphy calibration done\n");
+	printf("DDRINFO:ddrphy calibration done\n");
 
 	/* Step15: Set SWCTL.sw_done to 0 */
 	reg32_write(DDRC_SWCTL(0), 0x00000000);
@@ -459,7 +447,7 @@ int ddr_init(struct dram_timing_info *dram_timing)
 
 	/* enable port 0 */
 	reg32_write(DDRC_PCTRL_0(0), 0x00000001);
-	debug("DDRINFO: ddrmix config done\n");
+	printf("DDRINFO: ddrmix config done\n");
 
 	board_dram_ecc_scrub();
 

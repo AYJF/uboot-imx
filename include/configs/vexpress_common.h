@@ -112,16 +112,22 @@
 #define SCTL_BASE			V2M_SYSCTL
 #define VEXPRESS_FLASHPROG_FLVPPEN	(1 << 0)
 
-#define CFG_SYS_TIMER_RATE		1000000
-#define CFG_SYS_TIMER_COUNTER	(V2M_TIMER01 + 0x4)
+#define CONFIG_SYS_TIMER_RATE		1000000
+#define CONFIG_SYS_TIMER_COUNTER	(V2M_TIMER01 + 0x4)
+#define CONFIG_SYS_TIMER_COUNTS_DOWN
 
 /* PL011 Serial Configuration */
-#define CFG_PL011_CLOCK		24000000
-#define CFG_PL01x_PORTS		{(void *)CFG_SYS_SERIAL0, \
-					 (void *)CFG_SYS_SERIAL1}
+#define CONFIG_PL011_CLOCK		24000000
+#define CONFIG_PL01x_PORTS		{(void *)CONFIG_SYS_SERIAL0, \
+					 (void *)CONFIG_SYS_SERIAL1}
 
-#define CFG_SYS_SERIAL0		V2M_UART0
-#define CFG_SYS_SERIAL1		V2M_UART1
+#define CONFIG_SYS_SERIAL0		V2M_UART0
+#define CONFIG_SYS_SERIAL1		V2M_UART1
+
+#define CONFIG_SYS_MMC_MAX_BLK_COUNT	127
+
+/* BOOTP options */
+#define CONFIG_BOOTP_BOOTFILESIZE
 
 /* Miscellaneous configurable options */
 #define LINUX_BOOT_PARAM_ADDR		(V2M_BASE + 0x2000)
@@ -134,8 +140,12 @@
 #define PHYS_SDRAM_2_SIZE		0x20000000	/* 512 MB */
 
 /* additions for new relocation code */
-#define CFG_SYS_SDRAM_BASE		PHYS_SDRAM_1
-#define CFG_SYS_INIT_RAM_SIZE		0x1000
+#define CONFIG_SYS_SDRAM_BASE		PHYS_SDRAM_1
+#define CONFIG_SYS_INIT_RAM_SIZE		0x1000
+#define CONFIG_SYS_GBL_DATA_OFFSET	(CONFIG_SYS_SDRAM_BASE + \
+					 CONFIG_SYS_INIT_RAM_SIZE - \
+					 GENERATED_GBL_DATA_SIZE)
+#define CONFIG_SYS_INIT_SP_ADDR		CONFIG_SYS_GBL_DATA_OFFSET
 
 /* Basic environment settings */
 #define BOOT_TARGET_DEVICES(func) \
@@ -145,8 +155,7 @@
         func(DHCP, dhcp, na)
 #include <config_distro_bootcmd.h>
 
-#define CFG_EXTRA_ENV_SETTINGS \
-                "loadaddr=0x60100000\0" \
+#define CONFIG_EXTRA_ENV_SETTINGS \
                 "kernel_addr_r=0x60100000\0" \
                 "fdt_addr_r=0x60000000\0" \
                 "bootargs=console=tty0 console=ttyAMA0,38400n8\0" \
@@ -165,9 +174,19 @@
 		"fdtfile=" CONFIG_DEFAULT_FDT_FILE "\0"
 
 /* FLASH and environment organization */
-#define CFG_SYS_FLASH_SIZE		0x04000000
+#define PHYS_FLASH_SIZE			0x04000000	/* 64MB */
+#define CONFIG_SYS_FLASH_SIZE		0x04000000
+#define CONFIG_SYS_FLASH_BASE0		V2M_NOR0
+#define CONFIG_SYS_FLASH_BASE1		V2M_NOR1
+#define CONFIG_SYS_MONITOR_BASE		CONFIG_SYS_FLASH_BASE0
 
 /* Timeout values in ticks */
+#define CONFIG_SYS_FLASH_ERASE_TOUT	(2 * CONFIG_SYS_HZ) /* Erase Timeout */
+#define CONFIG_SYS_FLASH_WRITE_TOUT	(2 * CONFIG_SYS_HZ) /* Write Timeout */
+
+/* 255 0x40000 sectors + first or last sector may have 4 erase regions = 259 */
+#define CONFIG_SYS_MAX_FLASH_SECT	259		/* Max sectors */
+#define FLASH_MAX_SECTOR_SIZE		0x00040000	/* 256 KB sectors */
 
 /* Room required on the stack for the environment data */
 
@@ -178,6 +197,11 @@
  */
 
 /* Store environment at top of flash */
-#define CFG_SYS_FLASH_BANKS_LIST	{ V2M_NOR0, V2M_NOR1 }
+#define CONFIG_SYS_FLASH_EMPTY_INFO	/* flinfo indicates empty blocks */
+#define CONFIG_SYS_FLASH_BANKS_LIST	{ CONFIG_SYS_FLASH_BASE0, \
+					  CONFIG_SYS_FLASH_BASE1 }
+
+/* Monitor Command Prompt */
+#define CONFIG_SYS_CBSIZE		512	/* Console I/O Buffer Size */
 
 #endif /* VEXPRESS_COMMON_H */

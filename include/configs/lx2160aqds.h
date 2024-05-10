@@ -9,9 +9,22 @@
 #include "lx2160a_common.h"
 
 /* RTC */
-#define CFG_SYS_RTC_BUS_NUM		0
+#define CONFIG_SYS_RTC_BUS_NUM		0
+
+/*
+ * MMC
+ */
+#ifdef CONFIG_MMC
+#ifndef __ASSEMBLY__
+u8 qixis_esdhc_detect_quirk(void);
+#endif
+#define CONFIG_ESDHC_DETECT_QUIRK  qixis_esdhc_detect_quirk()
+#endif
 
 /* MAC/PHY configuration */
+#if defined(CONFIG_FSL_MC_ENET)
+#define CONFIG_ETHPRIME		"DPMAC17@rgmii-id"
+
 #define INPHI_PHY_ADDR1		0x0
 #define INPHI_PHY_ADDR2		0x1
 #ifdef CONFIG_SD_BOOT
@@ -21,8 +34,14 @@
 #endif
 #define IN112525_FW_LENGTH	0x40000
 
+#endif
+
+/* EEPROM */
+#define CONFIG_SYS_I2C_EEPROM_NXID
+#define CONFIG_SYS_EEPROM_BUS_NUM		0
+
 /* Initial environment variables */
-#define CFG_EXTRA_ENV_SETTINGS		\
+#define CONFIG_EXTRA_ENV_SETTINGS		\
 	EXTRA_ENV_SETTINGS			\
 	"boot_scripts=lx2160aqds_boot.scr\0"	\
 	"boot_script_hdr=hdr_lx2160aqds_bs.out\0"	\

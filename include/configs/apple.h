@@ -9,13 +9,13 @@
 	"stdout=serial,vidconsole\0" \
 	"stderr=serial,vidconsole\0"
 
-#if IS_ENABLED(CONFIG_CMD_NVME)
+#if CONFIG_IS_ENABLED(CMD_NVME)
 	#define BOOT_TARGET_NVME(func) func(NVME, nvme, 0)
 #else
 	#define BOOT_TARGET_NVME(func)
 #endif
 
-#if IS_ENABLED(CONFIG_CMD_USB)
+#if CONFIG_IS_ENABLED(CMD_USB)
 	#define BOOT_TARGET_USB(func) func(USB, usb, 0)
 #else
 	#define BOOT_TARGET_USB(func)
@@ -27,7 +27,7 @@
 
 #include <config_distro_bootcmd.h>
 
-#define CFG_EXTRA_ENV_SETTINGS \
+#define CONFIG_EXTRA_ENV_SETTINGS \
 	ENV_DEVICE_SETTINGS \
 	BOOTENV
 

@@ -74,3 +74,4 @@ int tegra_get_chip(void);
 int tegra_get_sku_info(void);
 int tegra_get_chip_sku(void);
 void adjust_pllp_out_freqs(void);
+void pmic_enable_cpu_vdd(void);

@@ -67,14 +67,10 @@ static int simple_panel_of_to_plat(struct udevice *dev)
 				return ret;
 		}
 	}
-
 	ret = uclass_get_device_by_phandle(UCLASS_PANEL_BACKLIGHT, dev,
-						   "backlight", &priv->backlight);
+					   "backlight", &priv->backlight);
 	if (ret) {
-		debug("%s: Cannot get backlight: ret=%d\n", __func__, ret);
-		if (ret != -ENOENT)
-			return log_ret(ret);
-
+		printf("%s: Cannot get backlight: ret=%d\n", __func__, ret);
 		priv->backlight = NULL;
 	}
 

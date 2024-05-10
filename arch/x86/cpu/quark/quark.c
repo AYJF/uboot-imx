@@ -5,7 +5,6 @@
 
 #include <common.h>
 #include <cpu_func.h>
-#include <event.h>
 #include <init.h>
 #include <mmc.h>
 #include <asm/cache.h>
@@ -49,7 +48,7 @@ static void quark_setup_mtrr(void)
 
 	/* variable range MTRR#0: ROM area */
 	mask = ~(CONFIG_SYS_MONITOR_LEN - 1);
-	base = CONFIG_TEXT_BASE & mask;
+	base = CONFIG_SYS_TEXT_BASE & mask;
 	msg_port_write(MSG_PORT_HOST_BRIDGE, MTRR_VAR_PHYBASE(MTRR_VAR_ROM),
 		       base | MTRR_TYPE_WRBACK);
 	msg_port_write(MSG_PORT_HOST_BRIDGE, MTRR_VAR_PHYMASK(MTRR_VAR_ROM),
@@ -248,7 +247,7 @@ int arch_cpu_init(void)
 	return 0;
 }
 
-static int quark_init_pcie(void *ctx, struct event *event)
+int arch_cpu_init_dm(void)
 {
 	/*
 	 * Initialize PCIe controller
@@ -263,7 +262,6 @@ static int quark_init_pcie(void *ctx, struct event *event)
 
 	return 0;
 }
-EVENT_SPY(EVT_DM_POST_INIT, quark_init_pcie);
 
 int checkcpu(void)
 {

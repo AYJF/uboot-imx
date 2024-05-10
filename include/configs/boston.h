@@ -9,10 +9,12 @@
 /*
  * General board configuration
  */
+#define CONFIG_SYS_BOOTM_LEN		(64 * 1024 * 1024)
 
 /*
  * CPU
  */
+#define CONFIG_SYS_MIPS_TIMER_FREQ	30000000
 
 /*
  * PCI
@@ -22,16 +24,24 @@
  * Memory map
  */
 #ifdef CONFIG_64BIT
-# define CFG_SYS_SDRAM_BASE		0xffffffff80000000
+# define CONFIG_SYS_SDRAM_BASE		0xffffffff80000000
 #else
-# define CFG_SYS_SDRAM_BASE		0x80000000
+# define CONFIG_SYS_SDRAM_BASE		0x80000000
 #endif
 
-#define CFG_SYS_INIT_SP_OFFSET	0x400000
+#define CONFIG_SYS_INIT_SP_OFFSET	0x400000
+
+#define CONFIG_SYS_MONITOR_BASE		CONFIG_SYS_TEXT_BASE
 
 /*
  * Console
  */
+
+/*
+ * Flash
+ */
+
+#define CONFIG_SYS_MAX_FLASH_SECT		1024
 
 /*
  * Environment

@@ -31,6 +31,8 @@
 #define V_OSCK			26000000	/* Clock output from T2 */
 #define V_SCLK			(V_OSCK >> 1)
 
+#define CONFIG_UBI_SIZE			(512 << 10)
+
 /*
  * Hardware drivers
  */
@@ -40,14 +42,25 @@
  */
 #define V_NS16550_CLK		48000000		/* 48MHz (APLL96/2) */
 
-#define CFG_SYS_NS16550_CLK		V_NS16550_CLK
+#define CONFIG_SYS_NS16550_SERIAL
+#define CONFIG_SYS_NS16550_REG_SIZE	(-4)
+#define CONFIG_SYS_NS16550_CLK		V_NS16550_CLK
 
 /*
  * select serial console configuration
  */
-#define CFG_SYS_NS16550_COM3		OMAP34XX_UART3
+#define CONFIG_SYS_NS16550_COM3		OMAP34XX_UART3
 
-#define CFG_SYS_BAUDRATE_TABLE { 4800, 9600, 19200, 38400, 57600, 115200 }
+#define CONFIG_SYS_BAUDRATE_TABLE { 4800, 9600, 19200, 38400, 57600, 115200 }
+
+/* USB device configuration */
+#define CONFIG_USB_DEVICE
+#define CONFIG_USB_TTY
+#define CONFIG_USBD_VENDORID		0x0421
+#define CONFIG_USBD_PRODUCTID_CDCACM	0x01c8
+#define CONFIG_USBD_PRODUCTID_GSERIAL	0x01c8
+#define CONFIG_USBD_MANUFACTURER	"Nokia"
+#define CONFIG_USBD_PRODUCT_NAME	"N900 (U-Boot)"
 
 #define GPIO_SLIDE			71
 
@@ -55,10 +68,10 @@
  * Board ONENAND Info.
  */
 
-#define CFG_SYS_ONENAND_BASE		ONENAND_MAP
+#define CONFIG_SYS_ONENAND_BASE		ONENAND_MAP
 
 /* Environment information */
-#define CFG_EXTRA_ENV_SETTINGS \
+#define CONFIG_EXTRA_ENV_SETTINGS \
 	"usbtty=cdc_acm\0" \
 	"stdin=usbtty,serial,keyboard\0" \
 	"stdout=usbtty,serial,vidconsole\0" \
@@ -68,16 +81,15 @@
 	"kernaddr=0x82008000\0" \
 	"initrdaddr=0x84008000\0" \
 	"scriptaddr=0x86008000\0" \
-	"fileloadaddr=" __stringify(CONFIG_SYS_LOAD_ADDR) "\0" \
 	"fileload=${mmctype}load mmc ${mmcnum}:${mmcpart} " \
-		"${fileloadaddr} ${mmcfile}\0" \
-	"kernload=setenv fileloadaddr ${kernaddr};" \
+		"${loadaddr} ${mmcfile}\0" \
+	"kernload=setenv loadaddr ${kernaddr};" \
 		"setenv mmcfile ${mmckernfile};" \
 		"run fileload\0" \
-	"initrdload=setenv fileloadaddr ${initrdaddr};" \
+	"initrdload=setenv loadaddr ${initrdaddr};" \
 		"setenv mmcfile ${mmcinitrdfile};" \
 		"run fileload\0" \
-	"scriptload=setenv fileloadaddr ${scriptaddr};" \
+	"scriptload=setenv loadaddr ${scriptaddr};" \
 		"setenv mmcfile ${mmcscriptfile};" \
 		"run fileload\0" \
 	"scriptboot=echo Running ${mmcscriptfile} from mmc " \
@@ -128,7 +140,7 @@
 	"bootmenu_delay=30\0" \
 	""
 
-#define CFG_POSTBOOTMENU \
+#define CONFIG_POSTBOOTMENU \
 	"echo;" \
 	"echo Extra commands:;" \
 	"echo run sdboot - Boot from SD card slot.;" \
@@ -141,7 +153,8 @@
  * (12/13/16.8/19.2/38.4MHz) or by 32KHz clock. We use 13MHz (V_SCLK).
  * This rate is divided by a local divisor.
  */
-#define CFG_SYS_TIMERBASE		(OMAP34XX_GPT2)
+#define CONFIG_SYS_TIMERBASE		(OMAP34XX_GPT2)
+#define CONFIG_SYS_PTV			2	/* Divisor: 2^(PTV+1) => 8 */
 
 /*
  * Physical Memory Map
@@ -152,16 +165,18 @@
  * FLASH and environment organization
  */
 
-#define CFG_SYS_SDRAM_BASE		PHYS_SDRAM_1
-#define CFG_SYS_INIT_RAM_ADDR	0x4020f800
-#define CFG_SYS_INIT_RAM_SIZE	0x800
+#define CONFIG_SYS_SDRAM_BASE		PHYS_SDRAM_1
+#define CONFIG_SYS_INIT_RAM_ADDR	0x4020f800
+#define CONFIG_SYS_INIT_RAM_SIZE	0x800
+#define CONFIG_SYS_INIT_SP_ADDR		(CONFIG_SYS_INIT_RAM_ADDR + \
+			CONFIG_SYS_INIT_RAM_SIZE - GENERATED_GBL_DATA_SIZE)
 
 /*
  * Attached kernel image
  */
 
 #define SDRAM_SIZE			0x10000000	/* 256 MB */
-#define SDRAM_END			(CFG_SYS_SDRAM_BASE + SDRAM_SIZE)
+#define SDRAM_END			(CONFIG_SYS_SDRAM_BASE + SDRAM_SIZE)
 
 #define IMAGE_MAXSIZE			0x1FF800	/* 2 MB - 2 kB */
 #define KERNEL_OFFSET			0x40000		/* 256 kB */
@@ -169,6 +184,6 @@
 #define KERNEL_ADDRESS			(SDRAM_END-KERNEL_MAXSIZE)
 
 /* Reserve protected RAM for attached kernel */
-#define CFG_PRAM			((KERNEL_MAXSIZE >> 10)+1)
+#define CONFIG_PRAM			((KERNEL_MAXSIZE >> 10)+1)
 
 #endif /* __CONFIG_H */

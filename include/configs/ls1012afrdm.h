@@ -10,14 +10,19 @@
 #include "ls1012a_common.h"
 
 /* DDR */
-#define CFG_SYS_SDRAM_SIZE		0x20000000
+#define CONFIG_DIMM_SLOTS_PER_CTLR	1
+#define CONFIG_CHIP_SELECTS_PER_CTRL	1
+#define CONFIG_SYS_SDRAM_SIZE		0x20000000
+#define CONFIG_CHIP_SELECTS_PER_CTRL	1
 
+#ifndef CONFIG_SPL_BUILD
 #undef BOOT_TARGET_DEVICES
 #define BOOT_TARGET_DEVICES(func) \
 	func(USB, usb, 0)
+#endif
 
-#undef CFG_EXTRA_ENV_SETTINGS
-#define CFG_EXTRA_ENV_SETTINGS		\
+#undef CONFIG_EXTRA_ENV_SETTINGS
+#define CONFIG_EXTRA_ENV_SETTINGS		\
 	"verify=no\0"				\
 	"fdt_high=0xffffffffffffffff\0"		\
 	"kernel_addr=0x01000000\0"		\

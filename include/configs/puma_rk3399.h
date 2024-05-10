@@ -8,4 +8,6 @@
 
 #include <configs/rk3399_common.h>
 
+#define SDRAM_BANK_SIZE			(2UL << 30)
+
 #endif

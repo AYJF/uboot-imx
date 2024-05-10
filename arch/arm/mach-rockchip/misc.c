@@ -23,7 +23,7 @@
 
 int rockchip_setup_macaddr(void)
 {
-#if CONFIG_IS_ENABLED(HASH) && CONFIG_IS_ENABLED(SHA256)
+#if CONFIG_IS_ENABLED(CMD_NET)
 	int ret;
 	const char *cpuid = env_get("cpuid#");
 	u8 hash[SHA256_SUM_LEN];
@@ -52,10 +52,6 @@ int rockchip_setup_macaddr(void)
 	mac_addr[0] &= 0xfe;  /* clear multicast bit */
 	mac_addr[0] |= 0x02;  /* set local assignment bit (IEEE802) */
 	eth_env_set_enetaddr("ethaddr", mac_addr);
-
-	/* Make a valid MAC address for ethernet1 */
-	mac_addr[5] ^= 0x01;
-	eth_env_set_enetaddr("eth1addr", mac_addr);
 #endif
 	return 0;
 }
@@ -64,15 +60,15 @@ int rockchip_cpuid_from_efuse(const u32 cpuid_offset,
 			      const u32 cpuid_length,
 			      u8 *cpuid)
 {
-#if IS_ENABLED(CONFIG_ROCKCHIP_EFUSE) || IS_ENABLED(CONFIG_ROCKCHIP_OTP)
+#if CONFIG_IS_ENABLED(ROCKCHIP_EFUSE) || CONFIG_IS_ENABLED(ROCKCHIP_OTP)
 	struct udevice *dev;
 	int ret;
 
 	/* retrieve the device */
-#if IS_ENABLED(CONFIG_ROCKCHIP_EFUSE)
+#if CONFIG_IS_ENABLED(ROCKCHIP_EFUSE)
 	ret = uclass_get_device_by_driver(UCLASS_MISC,
 					  DM_DRIVER_GET(rockchip_efuse), &dev);
-#elif IS_ENABLED(CONFIG_ROCKCHIP_OTP)
+#elif CONFIG_IS_ENABLED(ROCKCHIP_OTP)
 	ret = uclass_get_device_by_driver(UCLASS_MISC,
 					  DM_DRIVER_GET(rockchip_otp), &dev);
 #endif

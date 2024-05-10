@@ -142,22 +142,20 @@ static int dsa_port_send(struct udevice *pdev, void *packet, int length)
 	struct dsa_port_pdata *port_pdata;
 	int err;
 
-	if (ops->xmit) {
-		if (length + head + tail > PKTSIZE_ALIGN)
-			return -EINVAL;
+	if (length + head + tail > PKTSIZE_ALIGN)
+		return -EINVAL;
 
-		memset(dsa_packet_tmp, 0, head);
-		memset(dsa_packet_tmp + head + length, 0, tail);
-		memcpy(dsa_packet_tmp + head, packet, length);
-		length += head + tail;
-		/* copy back to preserve original buffer alignment */
-		memcpy(packet, dsa_packet_tmp, length);
+	memset(dsa_packet_tmp, 0, head);
+	memset(dsa_packet_tmp + head + length, 0, tail);
+	memcpy(dsa_packet_tmp + head, packet, length);
+	length += head + tail;
+	/* copy back to preserve original buffer alignment */
+	memcpy(packet, dsa_packet_tmp, length);
 
-		port_pdata = dev_get_parent_plat(pdev);
-		err = ops->xmit(dev, port_pdata->index, packet, length);
-		if (err)
-			return err;
-	}
+	port_pdata = dev_get_parent_plat(pdev);
+	err = ops->xmit(dev, port_pdata->index, packet, length);
+	if (err)
+		return err;
 
 	return eth_get_ops(master)->send(master, packet, length);
 }
@@ -174,7 +172,7 @@ static int dsa_port_recv(struct udevice *pdev, int flags, uchar **packetp)
 	int length, port_index, err;
 
 	length = eth_get_ops(master)->recv(master, flags, packetp);
-	if (length <= 0 || !ops->rcv)
+	if (length <= 0)
 		return length;
 
 	/*
@@ -344,19 +342,6 @@ U_BOOT_DRIVER(dsa_port) = {
 	.plat_auto = sizeof(struct eth_pdata),
 };
 
-static int dsa_sanitize_ops(struct udevice *dev)
-{
-	struct dsa_ops *ops = dsa_get_ops(dev);
-
-	if ((!ops->xmit || !ops->rcv) &&
-	    (!ops->port_enable && !ops->port_disable)) {
-		dev_err(dev, "Packets cannot be steered to ports\n");
-		return -EINVAL;
-	}
-
-	return 0;
-}
-
 /*
  * This function mostly deals with pulling information out of the device tree
  * into the pdata structure.
@@ -372,10 +357,6 @@ static int dsa_post_bind(struct udevice *dev)
 
 	if (!ofnode_valid(node))
 		return -ENODEV;
-
-	err = dsa_sanitize_ops(dev);
-	if (err)
-		return err;
 
 	pdata->master_node = ofnode_null();
 
@@ -451,7 +432,7 @@ static int dsa_post_bind(struct udevice *dev)
 		 * skip registration if port id not found or if the port
 		 * is explicitly disabled in DT
 		 */
-		if (!ofnode_valid(pnode) || !ofnode_is_enabled(pnode))
+		if (!ofnode_valid(pnode) || !ofnode_is_available(pnode))
 			continue;
 
 		err = device_bind_driver_to_node(dev, DSA_PORT_CHILD_DRV_NAME,
@@ -485,6 +466,7 @@ static int dsa_pre_probe(struct udevice *dev)
 {
 	struct dsa_pdata *pdata = dev_get_uclass_plat(dev);
 	struct dsa_priv *priv = dev_get_uclass_priv(dev);
+	struct dsa_ops *ops = dsa_get_ops(dev);
 	int err;
 
 	priv->num_ports = pdata->num_ports;
@@ -495,19 +477,8 @@ static int dsa_pre_probe(struct udevice *dev)
 		return -ENODEV;
 	}
 
-	err = uclass_get_device_by_ofnode(UCLASS_ETH, pdata->master_node,
-					  &priv->master_dev);
-	if (err)
-		return err;
-
-	return 0;
-}
-
-static int dsa_post_probe(struct udevice *dev)
-{
-	struct dsa_priv *priv = dev_get_uclass_priv(dev);
-	struct dsa_ops *ops = dsa_get_ops(dev);
-	int err;
+	uclass_find_device_by_ofnode(UCLASS_ETH, pdata->master_node,
+				     &priv->master_dev);
 
 	/* Simulate a probing event for the CPU port */
 	if (ops->port_probe) {
@@ -525,7 +496,6 @@ UCLASS_DRIVER(dsa) = {
 	.name = "dsa",
 	.post_bind = dsa_post_bind,
 	.pre_probe = dsa_pre_probe,
-	.post_probe = dsa_post_probe,
 	.per_device_auto = sizeof(struct dsa_priv),
 	.per_device_plat_auto = sizeof(struct dsa_pdata),
 	.per_child_plat_auto = sizeof(struct dsa_port_pdata),

@@ -54,8 +54,8 @@ SECTIONS
 	. = .;
 
 	. = ALIGN(4);
-	__u_boot_list : {
-		KEEP(*(SORT(__u_boot_list*)));
+	.u_boot_list : {
+		KEEP(*(SORT(.u_boot_list*)));
 	}
 
 	. = ALIGN(4);
@@ -75,7 +75,7 @@ SECTIONS
 		*(.__efi_runtime_rel_stop)
 	}
 
-	. = ALIGN(8);
+	. = ALIGN(4);
 	.image_copy_end :
 	{
 		*(.__image_copy_end)
@@ -114,7 +114,7 @@ SECTIONS
 
 	.bss __bss_base (OVERLAY) : {
 		*(.bss*)
-		 . = ALIGN(8);
+		 . = ALIGN(4);
 		 __bss_limit = .;
 	}
 

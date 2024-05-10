@@ -58,7 +58,8 @@
 #define USB_PHY1_BASE_ADDR	0x5b110000
 
 #define CAAM_ARB_BASE_ADDR      (0x31800000)
-#define CFG_SYS_FSL_SEC_ADDR (0x31400000)
+#define CONFIG_SYS_FSL_SEC_ADDR (0x31400000)
+#define CONFIG_SYS_FSL_MAX_NUM_OF_SEC	1
 
 #if !(defined(__KERNEL_STRICT_NAMES) || defined(__ASSEMBLY__))
 #include <asm/types.h>

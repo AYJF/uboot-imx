@@ -11,10 +11,15 @@
 
 #include "mx6_common.h"
 
-#define CFG_MXC_UART_BASE		UART1_BASE
+#define CONFIG_MXC_UART_BASE		UART1_BASE
 
 /* PMIC */
-#define CFG_POWER_PFUZE100_I2C_ADDR	0x08
+#ifndef CONFIG_DM_PMIC
+#define CONFIG_POWER_LEGACY
+#define CONFIG_POWER_I2C
+#define CONFIG_POWER_PFUZE100
+#define CONFIG_POWER_PFUZE100_I2C_ADDR	0x08
+#endif
 
 #ifdef CONFIG_NAND_BOOT
 #define MFG_NAND_PARTITION "mtdparts=gpmi-nand:64m(boot),16m(kernel),16m(dtb),1m(misc),-(rootfs) "
@@ -22,7 +27,7 @@
 #define MFG_NAND_PARTITION ""
 #endif
 
-#define CFG_MFG_ENV_SETTINGS \
+#define CONFIG_MFG_ENV_SETTINGS \
 	"mfgtool_args=setenv bootargs console=${console},${baudrate} " \
 		BOOTARGS_CMA_SIZE \
 		"rdinit=/linuxrc " \
@@ -38,8 +43,8 @@
 	"bootcmd_mfg=run mfgtool_args;bootz ${loadaddr} ${initrd_addr} ${fdt_addr};\0" \
 
 #if defined(CONFIG_NAND_BOOT)
-#define CFG_EXTRA_ENV_SETTINGS \
-	CFG_MFG_ENV_SETTINGS \
+#define CONFIG_EXTRA_ENV_SETTINGS \
+	CONFIG_MFG_ENV_SETTINGS \
 	"panel=MCIMX28LCD\0" \
 	"fdt_addr=0x83000000\0" \
 	"fdt_high=0xffffffff\0"	  \
@@ -53,8 +58,8 @@
 		"bootz ${loadaddr} - ${fdt_addr}\0"
 
 #else
-#define CFG_EXTRA_ENV_SETTINGS \
-	CFG_MFG_ENV_SETTINGS \
+#define CONFIG_EXTRA_ENV_SETTINGS \
+	CONFIG_MFG_ENV_SETTINGS \
 	"panel=MCIMX28LCD\0" \
 	"script=boot.scr\0" \
 	"image=zImage\0" \
@@ -67,7 +72,7 @@
 	"ip_dyn=yes\0" \
 	"mmcdev="__stringify(CONFIG_SYS_MMC_ENV_DEV)"\0" \
 	"mmcpart=1\0" \
-	"mmcroot=/dev/mmcblk0p2 rootwait rw\0" \
+	"mmcroot=" CONFIG_MMCROOT " rootwait rw\0" \
 	"mmcautodetect=yes\0" \
 	"mmcargs=setenv bootargs console=${console},${baudrate} " \
 		BOOTARGS_CMA_SIZE \
@@ -126,29 +131,58 @@
 /* Physical Memory Map */
 #define PHYS_SDRAM			MMDC0_ARB_BASE_ADDR
 
-#define CFG_SYS_SDRAM_BASE		PHYS_SDRAM
-#define CFG_SYS_INIT_RAM_ADDR	IRAM_BASE_ADDR
-#define CFG_SYS_INIT_RAM_SIZE	IRAM_SIZE
+#define CONFIG_SYS_SDRAM_BASE		PHYS_SDRAM
+#define CONFIG_SYS_INIT_RAM_ADDR	IRAM_BASE_ADDR
+#define CONFIG_SYS_INIT_RAM_SIZE	IRAM_SIZE
+
+#define CONFIG_SYS_INIT_SP_OFFSET \
+	(CONFIG_SYS_INIT_RAM_SIZE - GENERATED_GBL_DATA_SIZE)
+#define CONFIG_SYS_INIT_SP_ADDR \
+	(CONFIG_SYS_INIT_RAM_ADDR + CONFIG_SYS_INIT_SP_OFFSET)
 
 /* NAND stuff */
 #ifdef CONFIG_NAND_MXS
-#define CFG_SYS_NAND_BASE		0x40000000
+#define CONFIG_SYS_MAX_NAND_DEVICE	1
+#define CONFIG_SYS_NAND_BASE		0x40000000
+#define CONFIG_SYS_NAND_USE_FLASH_BBT
 
 /* DMA stuff, needed for GPMI/MXS NAND support */
 #endif
 
 
 #ifdef CONFIG_MTD_NOR_FLASH
-#define CFG_SYS_FLASH_BASE           WEIM_ARB_BASE_ADDR
+#define CONFIG_SYS_FLASH_BASE           WEIM_ARB_BASE_ADDR
+#define CONFIG_SYS_FLASH_SECT_SIZE     (256 * 1024)
+#define CONFIG_SYS_MAX_FLASH_BANKS 1    /* max number of memory banks */
+#define CONFIG_SYS_MAX_FLASH_SECT  512   /* max number of sectors on one chip */
+#define CONFIG_SYS_FLASH_CFI            /* Flash memory is CFI compliant */
+#define CONFIG_FLASH_CFI_DRIVER         /* Use drivers/cfi_flash.c */
+#define CONFIG_SYS_FLASH_USE_BUFFER_WRITE /* Use buffered writes*/
+#define CONFIG_SYS_FLASH_EMPTY_INFO
 #endif
 
 /* MMC Configs */
-#define CFG_SYS_FSL_ESDHC_ADDR	0
+#define CONFIG_SYS_FSL_ESDHC_ADDR	0
 
 #ifdef CONFIG_CMD_NAND
-#define CFG_SYS_FSL_USDHC_NUM	1
+#define CONFIG_SYS_FSL_USDHC_NUM	1
 #else
-#define CFG_SYS_FSL_USDHC_NUM	2
+#define CONFIG_SYS_FSL_USDHC_NUM	2
+#endif
+
+#define CONFIG_SYS_MMC_ENV_DEV		0   /* USDHC1 */
+#define CONFIG_SYS_MMC_ENV_PART		0	/* user area */
+#define CONFIG_MMCROOT			"/dev/mmcblk0p2"  /* USDHC1 */
+
+#ifdef CONFIG_VIDEO
+#define CONFIG_VIDEO_MXS
+#define CONFIG_VIDEO_LOGO
+#define CONFIG_SPLASH_SCREEN
+#define CONFIG_SPLASH_SCREEN_ALIGN
+#define CONFIG_BMP_16BPP
+#define CONFIG_VIDEO_BMP_RLE8
+#define CONFIG_VIDEO_BMP_LOGO
+#define CONFIG_IMX_VIDEO_SKIP
 #endif
 
 #endif

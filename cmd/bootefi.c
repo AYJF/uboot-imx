@@ -35,18 +35,6 @@ static void *image_addr;
 static size_t image_size;
 
 /**
- * efi_get_image_parameters() - return image parameters
- *
- * @img_addr:		address of loaded image in memory
- * @img_size:		size of loaded image
- */
-void efi_get_image_parameters(void **img_addr, size_t *img_size)
-{
-	*img_addr = image_addr;
-	*img_size = image_size;
-}
-
-/**
  * efi_clear_bootdev() - clear boot device
  */
 static void efi_clear_bootdev(void)
@@ -119,9 +107,9 @@ void efi_set_bootdev(const char *dev, const char *devnr, const char *path,
 			efi_free_pool(image_tmp);
 		}
 		bootefi_image_path = image;
-		log_debug("- boot device %pD\n", device);
+		log_debug("- recorded device %ls\n", efi_dp_str(device));
 		if (image)
-			log_debug("- image %pD\n", image);
+			log_debug("- and image %ls\n", efi_dp_str(image));
 	} else {
 		log_debug("- efi_dp_from_name() failed, err=%lx\n", ret);
 		efi_clear_bootdev();
@@ -281,7 +269,7 @@ efi_status_t efi_install_fdt(void *fdt)
 		return EFI_SUCCESS;
 	}
 #else
-	struct bootm_headers img = { 0 };
+	bootm_headers_t img = { 0 };
 	efi_status_t ret;
 
 	if (fdt == EFI_FDT_USE_INTERNAL) {
@@ -331,14 +319,6 @@ efi_status_t efi_install_fdt(void *fdt)
 	efi_carve_out_dt_rsv(fdt);
 
 	efi_try_purge_kaslr_seed(fdt);
-
-	if (CONFIG_IS_ENABLED(EFI_TCG2_PROTOCOL_MEASURE_DTB)) {
-		ret = efi_tcg2_measure_dtb(fdt);
-		if (ret == EFI_SECURITY_VIOLATION) {
-			log_err("ERROR: failed to measure DTB\n");
-			return ret;
-		}
-	}
 
 	/* Install device tree as UEFI table */
 	ret = efi_install_configuration_table(&efi_guid_fdt, fdt);
@@ -402,10 +382,8 @@ static efi_status_t do_bootefi_exec(efi_handle_t handle, void *load_options)
 out:
 	free(load_options);
 
-	if (IS_ENABLED(CONFIG_EFI_LOAD_FILE2_INITRD)) {
-		if (efi_initrd_deregister() != EFI_SUCCESS)
-			log_err("Failed to remove loadfile2 for initrd\n");
-	}
+	if (IS_ENABLED(CONFIG_EFI_LOAD_FILE2_INITRD))
+		efi_initrd_deregister();
 
 	/* Control is returned to U-Boot, disable EFI watchdog */
 	efi_set_watchdog(0);
@@ -444,11 +422,10 @@ static int do_efibootmgr(void)
  * Set up memory image for the binary to be loaded, prepare device path, and
  * then call do_bootefi_exec() to execute it.
  *
- * @image_opt:	string with image start address
- * @size_opt:	string with image size or NULL
+ * @image_opt:	string of image start address
  * Return:	status code
  */
-static int do_bootefi_image(const char *image_opt, const char *size_opt)
+static int do_bootefi_image(const char *image_opt)
 {
 	void *image_buf;
 	unsigned long addr, size;
@@ -466,21 +443,14 @@ static int do_bootefi_image(const char *image_opt, const char *size_opt)
 		/* Check that a numeric value was passed */
 		if (!addr)
 			return CMD_RET_USAGE;
+
 		image_buf = map_sysmem(addr, 0);
 
-		if (size_opt) {
-			size = strtoul(size_opt, NULL, 16);
-			if (!size)
-				return CMD_RET_USAGE;
-			efi_clear_bootdev();
-		} else {
-			if (image_buf != image_addr) {
-				log_err("No UEFI binary known at %s\n",
-					image_opt);
-				return CMD_RET_FAILURE;
-			}
-			size = image_size;
+		if (image_buf != image_addr) {
+			log_err("No UEFI binary known at %s\n", image_opt);
+			return CMD_RET_FAILURE;
 		}
+		size = image_size;
 	}
 	ret = efi_run_image(image_buf, size);
 
@@ -502,7 +472,7 @@ efi_status_t efi_run_image(void *source_buffer, efi_uintn_t source_size)
 	efi_handle_t mem_handle = NULL, handle;
 	struct efi_device_path *file_path = NULL;
 	struct efi_device_path *msg_path;
-	efi_status_t ret, ret2;
+	efi_status_t ret;
 	u16 *load_options;
 
 	if (!bootefi_device_path || !bootefi_image_path) {
@@ -519,9 +489,12 @@ efi_status_t efi_run_image(void *source_buffer, efi_uintn_t source_size)
 		 * Make sure that device for device_path exist
 		 * in load_image(). Otherwise, shell and grub will fail.
 		 */
-		ret = efi_install_multiple_protocol_interfaces(&mem_handle,
-							       &efi_guid_device_path,
-							       file_path, NULL);
+		ret = efi_create_handle(&mem_handle);
+		if (ret != EFI_SUCCESS)
+			goto out;
+
+		ret = efi_add_protocol(mem_handle, &efi_guid_device_path,
+				       file_path);
 		if (ret != EFI_SUCCESS)
 			goto out;
 		msg_path = file_path;
@@ -549,11 +522,9 @@ efi_status_t efi_run_image(void *source_buffer, efi_uintn_t source_size)
 	ret = do_bootefi_exec(handle, load_options);
 
 out:
-	ret2 = efi_uninstall_multiple_protocol_interfaces(mem_handle,
-							  &efi_guid_device_path,
-							  file_path, NULL);
+	efi_delete_handle(mem_handle);
 	efi_free_pool(file_path);
-	return (ret != EFI_SUCCESS) ? ret : ret2;
+	return ret;
 }
 
 #ifdef CONFIG_CMD_BOOTEFI_SELFTEST
@@ -670,7 +641,6 @@ static int do_bootefi(struct cmd_tbl *cmdtp, int flag, int argc,
 		      char *const argv[])
 {
 	efi_status_t ret;
-	char *img_addr, *img_size, *str_copy, *pos;
 	void *fdt;
 
 	if (argc < 2)
@@ -706,24 +676,16 @@ static int do_bootefi(struct cmd_tbl *cmdtp, int flag, int argc,
 	if (!strcmp(argv[1], "selftest"))
 		return do_efi_selftest();
 #endif
-	str_copy = strdup(argv[1]);
-	if (!str_copy) {
-		log_err("Out of memory\n");
-		return CMD_RET_FAILURE;
-	}
-	pos = str_copy;
-	img_addr = strsep(&pos, ":");
-	img_size = strsep(&pos, ":");
-	ret = do_bootefi_image(img_addr, img_size);
-	free(str_copy);
 
-	return ret;
+	return do_bootefi_image(argv[1]);
 }
 
 #ifdef CONFIG_SYS_LONGHELP
 static char bootefi_help_text[] =
-	"<image address>[:<image size>] [<fdt address>]\n"
-	"  - boot EFI payload\n"
+	"<image address> [fdt address]\n"
+	"  - boot EFI payload stored at address <image address>.\n"
+	"    If specified, the device tree located at <fdt address> gets\n"
+	"    exposed as EFI configuration table.\n"
 #ifdef CONFIG_CMD_BOOTEFI_HELLO
 	"bootefi hello\n"
 	"  - boot a sample Hello World application stored within U-Boot\n"
@@ -745,7 +707,7 @@ static char bootefi_help_text[] =
 #endif
 
 U_BOOT_CMD(
-	bootefi, 4, 0, do_bootefi,
+	bootefi, 3, 0, do_bootefi,
 	"Boots an EFI payload from memory",
 	bootefi_help_text
 );

@@ -10,12 +10,10 @@
 #ifndef _DM_DEVICE_INTERNAL_H
 #define _DM_DEVICE_INTERNAL_H
 
-#include <event.h>
 #include <linker_lists.h>
 #include <dm/ofnode.h>
 
 struct device_node;
-struct driver_info;
 struct udevice;
 
 /*
@@ -184,8 +182,8 @@ int device_of_to_plat(struct udevice *dev);
 /**
  * device_probe() - Probe a device, activating it
  *
- * Activate a device (if not yet activated) so that it is ready for use.
- * All its parents are probed first.
+ * Activate a device so that it is ready for use. All its parents are probed
+ * first.
  *
  * @dev: Pointer to device to probe
  * Return: 0 if OK, -ve on error
@@ -397,7 +395,7 @@ fdt_addr_t simple_bus_translate(struct udevice *dev, fdt_addr_t addr);
 #define DM_UCLASS_ROOT_S_NON_CONST	(((gd_t *)gd)->uclass_root_s)
 
 /* device resource management */
-#if CONFIG_IS_ENABLED(DEVRES)
+#ifdef CONFIG_DEVRES
 
 /**
  * devres_release_probe - Release managed resources allocated after probing
@@ -417,7 +415,7 @@ void devres_release_probe(struct udevice *dev);
  */
 void devres_release_all(struct udevice *dev);
 
-#else /* ! DEVRES */
+#else /* ! CONFIG_DEVRES */
 
 static inline void devres_release_probe(struct udevice *dev)
 {
@@ -427,14 +425,5 @@ static inline void devres_release_all(struct udevice *dev)
 {
 }
 
-#endif /* DEVRES */
-
-static inline int device_notify(const struct udevice *dev, enum event_t type)
-{
-#if CONFIG_IS_ENABLED(DM_EVENT)
-	return event_notify(type, &dev, sizeof(dev));
-#else
-	return 0;
-#endif
-}
+#endif /* ! CONFIG_DEVRES */
 #endif

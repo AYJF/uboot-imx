@@ -244,10 +244,6 @@
 	};
 };
 
-&gpc {
-	fsl,ldo-bypass = <1>;
-};
-
 &dcic1 {
 	dcic_id = <0>;
 	dcic_mux = "dcic-lcdif1";
@@ -364,9 +360,9 @@
 	sda-gpios = <&gpio1 3 GPIO_ACTIVE_HIGH>;
 	status = "okay";
 
-	egalax_ts@4 {
+	egalax_ts@04 {
 		compatible = "eeti,egalax_ts";
-		reg = <0x4>;
+		reg = <0x04>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&pinctrl_egalax_int>;
 		interrupt-parent = <&gpio4>;
@@ -385,7 +381,7 @@
 	status = "okay";
 
 	isl29023@44 {
-		compatible = "isil,isl29023";
+		compatible = "fsl,isl29023";
 		reg = <0x44>;
 		rext = <499>;
 		interrupt-parent = <&gpio6>;

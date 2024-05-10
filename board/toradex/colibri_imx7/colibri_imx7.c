@@ -101,7 +101,7 @@ static void setup_gpmi_nand(void)
 }
 #endif
 
-#ifdef CONFIG_VIDEO
+#ifdef CONFIG_DM_VIDEO
 static iomux_v3_cfg_t const backlight_pads[] = {
 	/* Backlight On */
 	MX7D_PAD_SD1_WP__GPIO5_IO1 | MUX_PAD_CTRL(NO_PAD_CTRL),
@@ -134,7 +134,7 @@ static int setup_lcd(void)
  */
 void board_preboot_os(void)
 {
-#ifdef CONFIG_VIDEO
+#ifdef CONFIG_DM_VIDEO
 	gpio_direction_output(GPIO_PWM_A, 1);
 	gpio_direction_output(GPIO_BL_ON, 0);
 #endif
@@ -207,7 +207,7 @@ int power_init_board(void)
 	int ret;
 
 
-	ret = pmic_get("pmic@33", &dev);
+	ret = pmic_get("rn5t567@33", &dev);
 	if (ret)
 		return ret;
 	ver = pmic_reg_read(dev, RN5T567_LSIVER);
@@ -241,7 +241,7 @@ void reset_cpu(void)
 {
 	struct udevice *dev;
 
-	pmic_get("pmic@33", &dev);
+	pmic_get("rn5t567@33", &dev);
 
 	/* Use PMIC to reset, set REPWRTIM to 0 and REPWRON to 1 */
 	pmic_reg_write(dev, RN5T567_REPCNT, 0x1);
@@ -319,22 +319,46 @@ int ft_board_setup(void *blob, struct bd_info *bd)
 #endif
 
 #ifdef CONFIG_USB_EHCI_MX7
-int board_fix_fdt(void *rw_fdt_blob)
+static iomux_v3_cfg_t const usb_otg2_pads[] = {
+	MX7D_PAD_UART3_CTS_B__USB_OTG2_PWR | MUX_PAD_CTRL(NO_PAD_CTRL),
+};
+
+int board_ehci_hcd_init(int port)
 {
-	/* i.MX 7Solo has only one single USB OTG1 but no USB host port */
-	if (is_cpu_type(MXC_CPU_MX7S)) {
-		int offset = fdt_path_offset(rw_fdt_blob, "/soc/bus@30800000/usb@30b20000");
+	switch (port) {
+	case 0:
+		break;
+	case 1:
+		if (is_cpu_type(MXC_CPU_MX7S))
+			return -ENODEV;
 
-		return fdt_status_disabled(rw_fdt_blob, offset);
+		imx_iomux_v3_setup_multiple_pads(usb_otg2_pads,
+						 ARRAY_SIZE(usb_otg2_pads));
+		break;
+	default:
+		return -EINVAL;
 	}
-
 	return 0;
+}
+
+int board_usb_phy_mode(int port)
+{
+	switch (port) {
+	case 0:
+		if (gpio_get_value(USB_CDET_GPIO))
+			return USB_INIT_DEVICE;
+		else
+			return USB_INIT_HOST;
+	case 1:
+	default:
+		return USB_INIT_HOST;
+	}
 }
 
 #if defined(CONFIG_BOARD_LATE_INIT)
 int board_late_init(void)
 {
-#if defined(CONFIG_VIDEO)
+#if defined(CONFIG_DM_VIDEO)
 	setup_lcd();
 #endif
 
@@ -349,4 +373,4 @@ int board_late_init(void)
 }
 #endif /* CONFIG_BOARD_LATE_INIT */
 
-#endif /* CONFIG_USB_EHCI_MX7 */
+#endif
