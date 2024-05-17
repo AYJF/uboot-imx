@@ -154,7 +154,7 @@
 &fec1 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_fec1>;
-	phy-mode = "rgmii-id";
+	phy-mode = "rgmii";
 	fsl,magic-packet;
 	status = "okay";
 
@@ -162,25 +162,49 @@
   		speed = <1000>;
                 full-duplex;
 	};
+
+	mdio {
+        #address-cells = <1>;
+        #size-cells = <0>;
+
+        ethernet-switch@1e {
+            compatible = "brcm,bcm53162";
+            reg = <30>;
+
+            ports {
+                #address-cells = <1>;
+                #size-cells = <0>;
+
+                port@3 {
+                    reg = <3>;
+                    label = "lan1";
+                };
+
+                port@4 {
+                    reg = <4>;
+                    label = "lan2";
+                };
+
+                port@5 {
+                    reg = <5>;
+                    label = "lan3";
+                };
+
+                port@14 {
+                    reg = <14>;
+					label = "cpu";
+                    phy-mode = "rgmii";
+                    ethernet = <&fec1>;
+                    fixed-link {
+                        speed = <1000>;
+                        full-duplex;
+                    };
+                };
+            };
+        };
+    };
 };
 
-&ecspi1 {
-	#address-cells = <1>;
-	#size-cells = <0>;
-	pinctrl-names = "default";
-	pinctrl-0 = <&pinctrl_ecspi1 &pinctrl_ecspi1_cs>;
-	cs-gpios = <&gpio5 9 GPIO_ACTIVE_LOW>;
-	status = "okay";
-
-	brcm53128: spidev@0 {
-		#address-cells = <1>;
-		#size-cells = <0>;
-		status = "okay";
-		compatible = "linux,spidev";
-		spi-max-frequency = <25000000>;
-		reg = <0>;
-	};
-};
 
 &ecspi2 {
 	#address-cells = <1>;
