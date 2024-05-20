@@ -205,6 +205,26 @@
     };
 };
 
+&ecspi1 {
+	#address-cells = <1>;
+	#size-cells = <0>;
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_ecspi1 &pinctrl_ecspi1_cs>;
+	cs-gpios = <&gpio5 9 GPIO_ACTIVE_LOW>;
+	status = "okay";
+	spi-cpha;
+	spi-cpol;
+
+	bcm53162: spidev@0 {
+		#address-cells = <1>;
+		#size-cells = <0>;
+		status = "okay";
+		compatible = "linux,spidev";
+		spi-max-frequency = <25000000>;
+		reg = <0>;
+	};
+};
+
 
 &ecspi2 {
 	#address-cells = <1>;
