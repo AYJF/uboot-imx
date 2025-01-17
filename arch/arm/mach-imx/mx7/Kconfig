@@ -69,6 +69,14 @@ config TARGET_MX7DSABRESD
 	select FSL_CAAM
 	select FSL_BLOB
 
+config TARGET_MX7DVAR_SOM
+	bool "mx7dvar_som"
+	select BOARD_LATE_INIT
+	select MX7D
+	select SUPPORT_SPL
+	select DM
+	select DM_THERMAL
+
 config TARGET_MX7D_12X12_LPDDR3_VAL
 	bool "Support mx7d_12x12_lpddr3_val"
 	select BOARD_LATE_INIT
@@ -158,6 +166,7 @@ source "board/novtech/meerkat96/Kconfig"
 source "board/storopack/smegw01/Kconfig"
 source "board/technexion/pico-imx7d/Kconfig"
 source "board/toradex/colibri_imx7/Kconfig"
+source "board/variscite/mx7dvar_som/Kconfig"
 source "board/warp7/Kconfig"
 
 endif
