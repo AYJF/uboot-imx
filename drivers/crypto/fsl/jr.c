@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0+
 /*
  * Copyright 2008-2014 Freescale Semiconductor, Inc.
- * Copyright 2018, 2021 NXP
+ * Copyright 2018, 2021-2022, 2024 NXP
  *
  * Based on CAAM driver in drivers/crypto/caam in Linux
  */
@@ -33,8 +33,8 @@
 uint32_t sec_offset[CONFIG_SYS_FSL_MAX_NUM_OF_SEC] = {
 	0,
 #if defined(CONFIG_ARCH_C29X)
-	CONFIG_SYS_FSL_SEC_IDX_OFFSET,
-	2 * CONFIG_SYS_FSL_SEC_IDX_OFFSET
+	CFG_SYS_FSL_SEC_IDX_OFFSET,
+	2 * CFG_SYS_FSL_SEC_IDX_OFFSET
 #endif
 };
 
@@ -42,17 +42,17 @@ uint32_t sec_offset[CONFIG_SYS_FSL_MAX_NUM_OF_SEC] = {
 struct udevice *caam_dev;
 #else
 #define SEC_ADDR(idx)	\
-	(ulong)((CONFIG_SYS_FSL_SEC_ADDR + sec_offset[idx]))
+	(ulong)((CFG_SYS_FSL_SEC_ADDR + sec_offset[idx]))
 
 #ifndef CONFIG_IMX8M
 #define SEC_JR_ADDR(idx)	\
 	(ulong)(SEC_ADDR(idx) +	\
-	 (CONFIG_SYS_FSL_JR0_OFFSET - CONFIG_SYS_FSL_SEC_OFFSET))
+	 (CFG_SYS_FSL_JR0_OFFSET - CFG_SYS_FSL_SEC_OFFSET))
 #define JR_ID 0
 #else
 #define SEC_JR_ADDR(idx)	\
 	(ulong)(SEC_ADDR(idx) + \
-	 (CONFIG_SYS_FSL_JR1_OFFSET - CONFIG_SYS_FSL_SEC_OFFSET))
+	 (CFG_SYS_FSL_JR1_OFFSET - CFG_SYS_FSL_SEC_OFFSET))
 #define JR_ID 1
 #endif
 struct caam_regs caam_st;
@@ -336,7 +336,7 @@ static inline int run_descriptor_jr_idx(uint32_t *desc, uint8_t sec_idx)
 	caam = &caam_st;
 #endif
 	unsigned long long timeval = 0;
-	unsigned long long timeout = CONFIG_USEC_DEQ_TIMEOUT;
+	unsigned long long timeout = CFG_USEC_DEQ_TIMEOUT;
 	struct result op;
 	int ret = 0;
 
@@ -671,8 +671,22 @@ static void kick_trng(u32 ent_delay, ccsr_sec_t *sec)
 	 * for the freq_mul and the limits of the interval are used to compute
 	 * rtfrqmin, rtfrqmax
 	 */
-	sec_out32(&rng->rtfreqmin, ent_delay >> 1);
-	sec_out32(&rng->rtfreqmax, ent_delay << 7);
+#if IS_ENABLED(CONFIG_IMX8ULP)
+		sec_out32(&rng->rtfreqmin, RTFRQMIN);
+		sec_out32(&rng->rtfreqmax, RTFRQMAX);
+		val = sec_in32(&rng->osc2_ctl);
+		/*
+		 * OSC2_CTL: Oscillator 2 Control Register
+		 * TRNG_ENT_CTL(1-0) = 00 : OSC1 default
+		 *                     01 : dual oscillator mode
+		 * setting the dual oscillator mode in OSC2_CTL
+		 */
+		val |= OSC2_CTL_TRNG_ENT_CTL;
+		sec_out32(&rng->osc2_ctl, val);
+#else
+		sec_out32(&rng->rtfreqmin, ent_delay >> 1);
+		sec_out32(&rng->rtfreqmax, ent_delay << 7);
+#endif
 
 	sec_out32(&rng->rtscmisc, (retries << 16) | lrun_max);
 	sec_out32(&rng->rtpkrmax, poker_max);
@@ -776,7 +790,7 @@ static int rng_init(uint8_t sec_idx, ccsr_sec_t *sec)
 		 * if worst case value for ent_dly is identified,
 		 * loop can be skipped for that platform.
 		 */
-		if (IS_ENABLED(CONFIG_MX6SX))
+		if (IS_ENABLED(CONFIG_MX6SX) || IS_ENABLED(CONFIG_IMX8ULP))
 			break;
 
 	} while ((ret == -1) && (ent_delay < RTSDCTL_ENT_DLY_MAX));
@@ -787,6 +801,11 @@ static int rng_init(uint8_t sec_idx, ccsr_sec_t *sec)
 
 	 /* Enable RDB bit so that RNG works faster */
 	sec_setbits32(&sec->scfgr, SEC_SCFGR_RDBENABLE);
+
+	if (IS_ENABLED(CONFIG_SPL_BUILD) && IS_ENABLED(CONFIG_IMX8ULP)) {
+		/* AESA DPAR Mask is reseeded from RNG DRNG State Handle 0 */
+		sec_setbits32(&sec->scfgr, SEC_SCFGR_RANDDPAR);
+	}
 
 	return ret;
 }
@@ -864,8 +883,8 @@ int sec_init_idx(uint8_t sec_idx)
 	 * creating PAMU entries corresponding to these.
 	 * For normal build, these are set in set_liodns().
 	 */
-	liodn_ns = CONFIG_SPL_JR0_LIODN_NS & JRNSLIODN_MASK;
-	liodn_s = CONFIG_SPL_JR0_LIODN_S & JRSLIODN_MASK;
+	liodn_ns = CFG_SPL_JR0_LIODN_NS & JRNSLIODN_MASK;
+	liodn_s = CFG_SPL_JR0_LIODN_S & JRSLIODN_MASK;
 
 	liodnr = sec_in32(&sec->jrliodnr[caam->jrid].ls) &
 		 ~(JRNSLIODN_MASK | JRSLIODN_MASK);
@@ -889,12 +908,11 @@ init:
 	}
 #if CONFIG_IS_ENABLED(OF_CONTROL)
 	if (ofnode_valid(scu_node)) {
-		if (IS_ENABLED(CONFIG_DM_RNG)) {
+		if (CONFIG_IS_ENABLED(DM_RNG)) {
 			ret = device_bind_driver(NULL, "caam-rng", "caam-rng", NULL);
 			if (ret)
 				printf("Couldn't bind rng driver (%d)\n", ret);
 		}
-
 		return ret;
 	}
 #endif
@@ -918,13 +936,13 @@ init:
 
 		printf("SEC%u:  RNG instantiated\n", sec_idx);
 	}
-
-	if (IS_ENABLED(CONFIG_DM_RNG)) {
+#if CONFIG_IS_ENABLED(OF_CONTROL)
+	if (CONFIG_IS_ENABLED(DM_RNG)) {
 		ret = device_bind_driver(NULL, "caam-rng", "caam-rng", NULL);
 		if (ret)
 			printf("Couldn't bind rng driver (%d)\n", ret);
 	}
-
+#endif
 	return ret;
 }
 
@@ -978,7 +996,7 @@ static int caam_jr_probe(struct udevice *dev)
 
 	/* Check for enabled job ring node */
 	ofnode_for_each_subnode(node, dev_ofnode(dev)) {
-		if (!ofnode_is_available(node))
+		if (!ofnode_is_enabled(node))
 			continue;
 
 		jr_node = ofnode_read_u32_default(node, "reg", -1);

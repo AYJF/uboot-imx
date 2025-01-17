@@ -16,7 +16,7 @@
 #include <asm/io.h>
 #include <asm/gpio.h>
 #include <asm/arch/clock.h>
-#include <asm/arch/sci/sci.h>
+#include <firmware/imx/sci/sci.h>
 #include <asm/arch/imx8-pins.h>
 #include <asm/arch/snvs_security_sc.h>
 #include <asm/arch/iomux.h>
@@ -120,7 +120,7 @@ int board_early_init_f(void)
 #if CONFIG_IS_ENABLED(DM_GPIO)
 static void board_gpio_init(void)
 {
-#if defined(CONFIG_DM_VIDEO)
+#if defined(CONFIG_VIDEO)
 	int ret;
 	struct gpio_desc desc;
 

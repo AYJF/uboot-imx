@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0+
 /*
  * Copyright 2019 NXP
- * Copyright 2020-2022 Variscite Ltd.
+ * Copyright 2020-2024 Variscite Ltd.
  */
 #include "imx8mp-sec-def.h"
 
@@ -11,14 +11,7 @@
 	wdt-reboot {
 		compatible = "wdt-reboot";
 		wdt = <&wdog1>;
-		u-boot,dm-spl;
-	};
-
-	firmware {
-		optee {
-			compatible = "linaro,optee-tz";
-			method = "smc";
-		};
+		bootph-pre-ram;
 	};
 
 	mcu_rdc {
@@ -48,102 +41,77 @@
 	};
 };
 
-&pinctrl_reg_usdhc2_vmmc {
-	u-boot,dm-spl;
-	u-boot,off-on-delay-us = <20000>;
-};
-
-&reg_usdhc2_vmmc {
-	u-boot,dm-spl;
-};
-
-&pinctrl_usdhc2_gpio {
-	u-boot,dm-spl;
-};
-
-&pinctrl_usdhc2 {
-	u-boot,dm-spl;
-};
-
-&pinctrl_usdhc3 {
-	u-boot,dm-spl;
+&crypto {
+	bootph-pre-ram;
 };
 
 &gpio1 {
-	u-boot,dm-spl;
+	bootph-pre-ram;
 };
 
 &gpio2 {
-	u-boot,dm-spl;
+	bootph-pre-ram;
 };
 
 &gpio3 {
-	u-boot,dm-spl;
+	bootph-pre-ram;
 };
 
 &gpio4 {
-	u-boot,dm-spl;
+	bootph-pre-ram;
 };
 
 &gpio5 {
-	u-boot,dm-spl;
-};
-
-&crypto {
-	u-boot,dm-spl;
-};
-
-&sec_jr0 {
-	u-boot,dm-spl;
-};
-
-&sec_jr1 {
-	u-boot,dm-spl;
-};
-
-&sec_jr2 {
-	u-boot,dm-spl;
+	bootph-pre-ram;
 };
 
 &i2c1 {
-	u-boot,dm-spl;
+	bootph-pre-ram;
 };
 
 &pinctrl_i2c1 {
-	u-boot,dm-spl;
+	bootph-all;
 };
 
 &pinctrl_i2c1_gpio {
-	u-boot,dm-spl;
+	bootph-all;
 };
 
-&usdhc3 {
-	u-boot,dm-spl;
-	mmc-hs400-1_8v;
-	mmc-hs400-enhanced-strobe;
-	assigned-clocks = <&clk IMX8MP_CLK_USDHC3>;
-	assigned-clock-rates = <400000000>;
-	assigned-clock-parents = <&clk IMX8MP_SYS_PLL1_400M>;
+&pinctrl_reg_usdhc2_vmmc {
+	bootph-pre-ram;
+	u-boot,off-on-delay-us = <20000>;
 };
 
-&usdhc2 {
-	u-boot,dm-spl;
-	sd-uhs-sdr104;
-	sd-uhs-ddr50;
-	assigned-clocks = <&clk IMX8MP_CLK_USDHC2>;
-	assigned-clock-rates = <400000000>;
-	assigned-clock-parents = <&clk IMX8MP_SYS_PLL1_400M>;
+&pinctrl_usdhc2_gpio {
+	bootph-pre-ram;
 };
 
-&wdog1 {
-	u-boot,dm-spl;
+&pinctrl_usdhc2 {
+	bootph-pre-ram;
 };
 
-&eqos {
-	compatible = "fsl,imx-eqos";
-	/delete-property/ assigned-clocks;
-	/delete-property/ assigned-clock-parents;
-	/delete-property/ assigned-clock-rates;
+&pinctrl_usdhc3 {
+	bootph-pre-ram;
+};
+
+&pinctrl_wdog {
+	bootph-pre-ram;
+};
+
+&reg_usdhc2_vmmc {
+	bootph-pre-ram;
+};
+
+&sec_jr0 {
+	bootph-pre-ram;
+};
+
+&sec_jr1 {
+	bootph-pre-ram;
+};
+
+&sec_jr2 {
+	bootph-pre-ram;
 };
 
 &usb_dwc3_0 {
@@ -158,4 +126,26 @@
 	assigned-clocks = <&clk IMX8MP_CLK_HSIO_AXI>;
 	assigned-clock-parents = <&clk IMX8MP_SYS_PLL1_800M>;
 	assigned-clock-rates = <400000000>;
+};
+
+&usdhc3 {
+	bootph-pre-ram;
+	mmc-hs400-1_8v;
+	mmc-hs400-enhanced-strobe;
+	assigned-clocks = <&clk IMX8MP_CLK_USDHC3>;
+	assigned-clock-rates = <400000000>;
+	assigned-clock-parents = <&clk IMX8MP_SYS_PLL1_400M>;
+};
+
+&usdhc2 {
+	bootph-pre-ram;
+	sd-uhs-sdr104;
+	sd-uhs-ddr50;
+	assigned-clocks = <&clk IMX8MP_CLK_USDHC2>;
+	assigned-clock-rates = <400000000>;
+	assigned-clock-parents = <&clk IMX8MP_SYS_PLL1_400M>;
+};
+
+&wdog1 {
+	bootph-pre-ram;
 };

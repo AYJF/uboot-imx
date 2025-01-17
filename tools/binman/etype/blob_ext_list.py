@@ -9,8 +9,8 @@ import os
 
 from binman.etype.blob import Entry_blob
 from dtoc import fdt_util
-from patman import tools
-from patman import tout
+from u_boot_pylib import tools
+from u_boot_pylib import tout
 
 class Entry_blob_ext_list(Entry_blob):
     """List of externally built binary blobs
@@ -37,7 +37,7 @@ class Entry_blob_ext_list(Entry_blob):
         missing = False
         pathnames = []
         for fname in self._filenames:
-            fname = self.check_fake_fname(fname)
+            fname, _ = self.check_fake_fname(fname)
             pathname = tools.get_input_filename(
                 fname, self.external and self.section.GetAllowMissing())
             # Allow the file to be missing

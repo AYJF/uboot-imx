@@ -2,7 +2,7 @@
 /*
  * BTRFS filesystem implementation for U-Boot
  *
- * 2017 Marek Behun, CZ.NIC, marek.behun@nic.cz
+ * 2017 Marek Behún, CZ.NIC, kabel@kernel.org
  */
 
 #include <linux/kernel.h>
@@ -390,7 +390,7 @@ int btrfs_read_extent_inline(struct btrfs_path *path,
 			   csize);
 	ret = btrfs_decompress(btrfs_file_extent_compression(leaf, fi),
 			       cbuf, csize, dbuf, dsize);
-	if (ret == (u32)-1) {
+	if (ret < 0) {
 		ret = -EIO;
 		goto out;
 	}
@@ -500,7 +500,7 @@ int btrfs_read_extent_reg(struct btrfs_path *path,
 
 	ret = btrfs_decompress(btrfs_file_extent_compression(leaf, fi), cbuf,
 			       csize, dbuf, dsize);
-	if (ret == (u32)-1) {
+	if (ret < 0) {
 		ret = -EIO;
 		goto out;
 	}
@@ -511,7 +511,9 @@ int btrfs_read_extent_reg(struct btrfs_path *path,
 	if (ret < dsize)
 		memset(dbuf + ret, 0, dsize - ret);
 	/* Then copy the needed part */
-	memcpy(dest, dbuf + btrfs_file_extent_offset(leaf, fi), len);
+	memcpy(dest,
+	       dbuf + btrfs_file_extent_offset(leaf, fi) + offset - key.offset,
+	       len);
 	ret = len;
 out:
 	free(cbuf);
@@ -546,15 +548,12 @@ static int lookup_data_extent(struct btrfs_root *root, struct btrfs_path *path,
 	/* Error or we're already at the file extent */
 	if (ret <= 0)
 		return ret;
-	if (ret > 0) {
-		/* Check previous file extent */
-		ret = btrfs_previous_item(root, path, ino,
-					  BTRFS_EXTENT_DATA_KEY);
-		if (ret < 0)
-			return ret;
-		if (ret > 0)
-			goto check_next;
-	}
+	/* Check previous file extent */
+	ret = btrfs_previous_item(root, path, ino, BTRFS_EXTENT_DATA_KEY);
+	if (ret < 0)
+		return ret;
+	if (ret > 0)
+		goto check_next;
 	/* Now the key.offset must be smaller than @file_offset */
 	btrfs_item_key_to_cpu(path->nodes[0], &key, path->slots[0]);
 	if (key.objectid != ino ||

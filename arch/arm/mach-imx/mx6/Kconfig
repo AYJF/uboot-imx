@@ -215,12 +215,12 @@ config TARGET_COLIBRI_IMX6ULL
 	select BOARD_LATE_INIT
 	select DM
 	select DM_THERMAL
+	select IOMUX_LPSR
 
 config TARGET_DART_6UL
 	bool "Variscite imx6ULL dart(DART-SOM-6ULL)"
 	depends on MX6ULL
 	select DM
-	select DM_ETH
 	select DM_GPIO
 	select DM_I2C
 	select DM_MMC
@@ -243,12 +243,12 @@ config TARGET_DISPLAY5
 	bool "LWN DISPLAY5 board"
 	depends on MX6Q
 	select DM
-	select DM_ETH
 	select DM_I2C
 	select DM_MMC
 	select DM_SPI
 	select DM_GPIO
 	select DM_SERIAL
+	select MTD
 	select SUPPORT_SPL
 	imply CMD_DM
 
@@ -274,6 +274,8 @@ config TARGET_GW_VENTANA
 	bool "gw_ventana"
 	depends on MX6QDL
 	select SUPPORT_SPL
+	select GATEWORKS_SC
+	select MISC
 	imply CMD_SATA
 	imply CMD_SPL
 
@@ -289,12 +291,11 @@ config TARGET_KONTRON_MX6UL
 config TARGET_KOSAGI_NOVENA
 	bool "Kosagi Novena"
 	select BOARD_LATE_INIT
-	select DM_ETH
 	select DM_GPIO
 	select DM_MMC
 	select PCI
-	select DM_SCSI
-	select DM_VIDEO
+	select SCSI
+	select VIDEO
 	select OF_CONTROL
 	select SUPPORT_SPL
 	imply CMD_DM
@@ -305,10 +306,10 @@ config TARGET_MCCMON6
 	select SUPPORT_SPL
 	select DM
 	select DM_GPIO
-	select DM_ETH
 	select DM_SERIAL
 	select DM_I2C
 	select DM_SPI
+	select MTD
 	imply CMD_DM
 
 config TARGET_MX6CUBOXI
@@ -324,7 +325,6 @@ config TARGET_MX6LOGICPD
 	select BOARD_EARLY_INIT_F
 	select BOARD_LATE_INIT
 	select DM
-	select DM_ETH
 	select DM_GPIO
 	select DM_I2C
 	select DM_MMC
@@ -345,7 +345,6 @@ config TARGET_MX6DL_MAMOJ
 	bool "Support BTicino Mamoj"
 	depends on MX6QDL
 	select DM
-	select DM_ETH
 	select DM_GPIO
 	select DM_I2C
 	select DM_MMC
@@ -378,7 +377,6 @@ config TARGET_MX6Q_ENGICAM
 	depends on MX6QDL
 	select BOARD_LATE_INIT
 	select DM
-	select DM_ETH
 	select DM_GPIO
 	select DM_I2C
 	select DM_MMC
@@ -389,6 +387,28 @@ config TARGET_MX6Q_ENGICAM
 	select SPL_OF_LIBFDT
 	select SPL_PINCTRL if SPL
 	select SPL_SEPARATE_BSS if SPL
+	select SUPPORT_SPL
+	imply CMD_DM
+
+config TARGET_MX6Q_ACC
+	bool "Support for Bosch ACC board"
+	depends on MX6QDL
+	select BOARD_LATE_INIT
+	select OF_CONTROL
+	select SPL_OF_LIBFDT
+	select DM
+	select DM_GPIO
+	select DM_I2C
+	select DM_MMC
+	select DM_THERMAL
+	select SUPPORT_SPL
+
+config TARGET_MX6S_SIELAFF
+	bool "Sielaff i.MX6 Solo Board"
+	depends on MX6S
+	select BINMAN
+	select DM
+	select DM_THERMAL
 	select SUPPORT_SPL
 	imply CMD_DM
 
@@ -467,14 +487,7 @@ config TARGET_MX6SLLEVK
 	select BOARD_LATE_INIT
 	select DM
 	select DM_THERMAL
-	imply CMD_DM
-
-config TARGET_MX6SLL_VAL
-	bool "mx6sll val"
-	depends on MX6SLL
-	select BOARD_LATE_INIT
-	select DM
-	select DM_THERMAL
+	select IOMUX_LPSR
 	imply CMD_DM
 
 config TARGET_MX6SXSABRESD
@@ -497,33 +510,6 @@ config TARGET_MX6SXSABREAUTO
 	select BOARD_LATE_INIT
 	select DM
 	select DM_THERMAL
-	imply CMD_DM
-
-config TARGET_MX6SX_14X14_VAL
-	bool "mx6sx_14x14_val"
-	depends on MX6SX
-	select DM
-	select DM_THERMAL
-	select BOARD_EARLY_INIT_F
-	select BOARD_LATE_INIT
-	imply CMD_DM
-
-config TARGET_MX6SX_17X17_VAL
-	bool "mx6sx_17x17_val"
-	depends on MX6SX
-	select DM
-	select DM_THERMAL
-	select BOARD_EARLY_INIT_F
-	select BOARD_LATE_INIT
-	imply CMD_DM
-
-config TARGET_MX6SX_19X19_VAL
-	bool "mx6sx_19x19_val"
-	depends on MX6SX
-	select DM
-	select DM_THERMAL
-	select BOARD_EARLY_INIT_F
-	select BOARD_LATE_INIT
 	imply CMD_DM
 
 config TARGET_MX6UL_9X9_EVK
@@ -554,32 +540,11 @@ config TARGET_MX6UL_14X14_EVK
 	select FSL_BLOB
 	select ARCH_MISC_INIT
 
-config TARGET_MX6UL_14X14_DDR3_VAL
-	bool "mx6ul_14x14_ddr3_val"
-	depends on MX6UL
-	select BOARD_LATE_INIT
-	select DM
-	select DM_THERMAL
-	select IMX_MODULE_FUSE
-	select OF_SYSTEM_SETUP
-	imply CMD_DM
-
-config TARGET_MX6UL_14X14_LPDDR2_VAL
-	bool "mx6ul_14x14_lpddr2_val"
-	depends on MX6UL
-	select BOARD_LATE_INIT
-	select DM
-	select DM_THERMAL
-	select IMX_MODULE_FUSE
-	select OF_SYSTEM_SETUP
-	imply CMD_DM
-
 config TARGET_MX6UL_ENGICAM
 	bool "Support Engicam GEAM6UL/Is.IoT"
 	depends on MX6UL
 	select BOARD_LATE_INIT
 	select DM
-	select DM_ETH
 	select DM_GPIO
 	select DM_I2C
 	select DM_MMC
@@ -592,22 +557,13 @@ config TARGET_MX6UL_ENGICAM
 	select SUPPORT_SPL
 	imply CMD_DM
 
-config TARGET_MX6ULL_DDR3_VAL
-	bool "Support mx6ull_ddr3_val"
-	depends on MX6ULL
-	select BOARD_LATE_INIT
-	select DM
-	select DM_THERMAL
-	select IMX_MODULE_FUSE
-	select OF_SYSTEM_SETUP
-	imply CMD_DM
-
 config TARGET_MX6ULL_9X9_EVK
 	bool "Support mx6ull_9x9_evk"
 	depends on MX6ULL
 	select BOARD_LATE_INIT
 	select DM
 	select DM_THERMAL
+	select IOMUX_LPSR
 	select IMX_MODULE_FUSE
 	select OF_SYSTEM_SETUP
 	imply CMD_DM
@@ -618,15 +574,26 @@ config TARGET_MX6ULL_14X14_EVK
 	select BOARD_LATE_INIT
 	select DM
 	select DM_THERMAL
+	select IOMUX_LPSR
 	select IMX_MODULE_FUSE
 	select OF_SYSTEM_SETUP
 	imply CMD_DM
+
+config TARGET_MX6ULZ_SMM_M2
+	bool "Support imx6ulz_smm_m2"
+	depends on MX6ULL
+	select DM
+	select DM_GPIO
+	select DM_I2C
+	select DM_SERIAL
+	select DM_MTD
+	select DM_THERMAL
+	select SUPPORT_SPL
 
 config TARGET_MYS_6ULX
 	bool "MYiR MYS-6ULX"
 	depends on MX6ULL
 	select DM
-	select DM_ETH
 	select DM_GPIO
 	select DM_I2C
 	select DM_MMC
@@ -646,12 +613,26 @@ config TARGET_NPI_IMX6ULL
 	bool "Seeed NPI-IMX6ULL"
 	depends on MX6ULL
 	select DM
-	select DM_ETH
 	select DM_MMC
 	select DM_GPIO
 	select DM_SERIAL
 	select DM_THERMAL
 	select SUPPORT_SPL
+
+config TARGET_MX6VAR_SOM
+	bool "mx6var_som"
+	depends on MX6QDL
+	select BOARD_EARLY_INIT_F
+	select BOARD_LATE_INIT
+	select DM
+	select DM_THERMAL
+	select SUPPORT_SPL
+	imply CMD_DM
+	select FSL_CAAM
+	select ARCH_MISC_INIT
+	select IMX_THERMAL
+	select FSL_BLOB
+	select RNG_SELF_TEST
 
 config TARGET_OPOS6ULDEV
 	bool "Armadeus OPOS6ULDev board"
@@ -694,7 +675,6 @@ config TARGET_PCL063
 	bool "PHYTEC PCL063 (phyCORE-i.MX6UL)"
 	depends on MX6UL
 	select DM
-	select DM_ETH
 	select DM_GPIO
 	select DM_I2C
 	select DM_MMC
@@ -706,7 +686,6 @@ config TARGET_PCL063_ULL
 	bool "PHYTEC PCL063 (phyCORE-i.MX6ULL)"
 	depends on MX6ULL
 	select DM
-	select DM_ETH
 	select DM_GPIO
 	select DM_I2C
 	select DM_MMC
@@ -719,7 +698,6 @@ config TARGET_SOMLABS_VISIONSOM_6ULL
 	depends on MX6ULL
 	select BOARD_LATE_INIT
 	select DM
-	select DM_ETH
 	select DM_GPIO
 	select DM_MMC
 	select DM_SERIAL
@@ -739,7 +717,6 @@ config TARGET_KP_IMX6Q_TPC
 	select SPL_DM if SPL
 	select DM_THERMAL
 	select DM_MMC
-	select DM_ETH
 	select DM_REGULATOR
 	select SPL_DM_REGULATOR if SPL
 	select DM_SERIAL
@@ -759,6 +736,7 @@ config TARGET_TQMA6
 	imply DM
 	imply DM_GPIO
 	imply DM_MMC
+	imply MTD
 	imply DM_SPI
 	imply DM_SPI_FLASH
 	imply DM_I2C
@@ -796,11 +774,6 @@ config TARGET_WANDBOARD
 	select BOARD_LATE_INIT
 	select SUPPORT_SPL
 
-config TARGET_WARP
-	bool "WaRP"
-	depends on MX6SL
-	select BOARD_LATE_INIT
-
 config TARGET_BRPPT2
 	bool "brppt2"
 	depends on MX6QDL
@@ -808,7 +781,6 @@ config TARGET_BRPPT2
 	select OF_CONTROL
 	select SPL_OF_LIBFDT
 	select DM
-	select DM_ETH
 	select DM_GPIO
 	select DM_I2C
 	select DM_MMC
@@ -841,6 +813,7 @@ source "board/ge/b1x5v2/Kconfig"
 source "board/aristainetos/Kconfig"
 source "board/armadeus/opos6uldev/Kconfig"
 source "board/boundary/nitrogen6x/Kconfig"
+source "board/bsh/imx6ulz_smm_m2/Kconfig"
 source "board/bticino/mamoj/Kconfig"
 source "board/compulab/cm_fx6/Kconfig"
 source "board/dhelectronics/dh_imx6/Kconfig"
@@ -851,17 +824,12 @@ source "board/freescale/mx6memcal/Kconfig"
 source "board/freescale/mx6sabreauto/Kconfig"
 source "board/freescale/mx6sabresd/Kconfig"
 source "board/freescale/mx6slevk/Kconfig"
-source "board/freescale/mx6sll_val/Kconfig"
 source "board/freescale/mx6sllevk/Kconfig"
 source "board/freescale/mx6sxsabresd/Kconfig"
 source "board/freescale/mx6sxsabreauto/Kconfig"
-source "board/freescale/mx6sx_17x17_val/Kconfig"
-source "board/freescale/mx6sx_19x19_val/Kconfig"
 source "board/freescale/mx6ul_14x14_evk/Kconfig"
-source "board/freescale/mx6ul_14x14_ddr3_val/Kconfig"
-source "board/freescale/mx6ul_14x14_lpddr2_val/Kconfig"
 source "board/freescale/mx6ullevk/Kconfig"
-source "board/freescale/mx6ull_ddr3_val/Kconfig"
+source "board/bosch/acc/Kconfig"
 source "board/grinn/liteboard/Kconfig"
 source "board/phytec/pcm058/Kconfig"
 source "board/phytec/pcl063/Kconfig"
@@ -872,6 +840,7 @@ source "board/softing/vining_2000/Kconfig"
 source "board/liebherr/display5/Kconfig"
 source "board/liebherr/mccmon6/Kconfig"
 source "board/logicpd/imx6/Kconfig"
+source "board/sielaff/imx6dl-sielaff/Kconfig"
 source "board/solidrun/mx6cuboxi/Kconfig"
 source "board/somlabs/visionsom-6ull/Kconfig"
 source "board/technexion/pico-imx6/Kconfig"
@@ -885,8 +854,8 @@ source "board/k+p/kp_imx6q_tpc/Kconfig"
 source "board/udoo/Kconfig"
 source "board/udoo/neo/Kconfig"
 source "board/wandboard/Kconfig"
-source "board/warp/Kconfig"
 source "board/BuR/brppt2/Kconfig"
 source "board/out4/o4-imx6ull-nano/Kconfig"
+source "board/variscite/mx6var_som/Kconfig"
 
 endif

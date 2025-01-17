@@ -1403,14 +1403,20 @@ static int px30_clk_enable(struct clk *clk)
 {
 	switch (clk->id) {
 	case HCLK_HOST:
+	case HCLK_OTG:
+	case HCLK_SFC:
 	case SCLK_GMAC:
 	case SCLK_GMAC_RX_TX:
 	case SCLK_MAC_REF:
 	case SCLK_MAC_REFOUT:
+	case SCLK_SFC:
 	case ACLK_GMAC:
 	case PCLK_GMAC:
 	case SCLK_GMAC_RMII:
 		/* Required to successfully probe the Designware GMAC driver */
+		return 0;
+	case PCLK_WDT_NS:
+		/* Required to successfully probe the Designware watchdog driver */
 		return 0;
 	}
 
@@ -1502,7 +1508,7 @@ static int px30_clk_bind(struct udevice *dev)
 	ret = offsetof(struct px30_cru, softrst_con[0]);
 	ret = rockchip_reset_bind(dev, ret, 12);
 	if (ret)
-		debug("Warning: software reset driver bind faile\n");
+		debug("Warning: software reset driver bind failed\n");
 #endif
 
 	return 0;

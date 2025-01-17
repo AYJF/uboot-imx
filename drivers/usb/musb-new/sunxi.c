@@ -30,6 +30,7 @@
 #include <dm/root.h>
 #include <linux/bitops.h>
 #include <linux/delay.h>
+#include <linux/printk.h>
 #include <linux/usb/musb.h>
 #include "linux-compat.h"
 #include "musb_core.h"
@@ -80,8 +81,6 @@
 /******************************************************************************
  * From usbc/usbc.c
  ******************************************************************************/
-
-#define OFF_SUN6I_AHB_RESET0	0x2c0
 
 struct sunxi_musb_config {
 	struct musb_hdrc_config *config;
@@ -241,12 +240,6 @@ static int sunxi_musb_enable(struct musb *musb)
 	musb_writeb(musb->mregs, USBC_REG_o_VEND0, 0);
 
 	if (is_host_enabled(musb)) {
-		ret = sun4i_usb_phy_vbus_detect(&glue->phy);
-		if (ret == 1) {
-			printf("A charger is plugged into the OTG: ");
-			return -ENODEV;
-		}
-
 		ret = sun4i_usb_phy_id_detect(&glue->phy);
 		if (ret == 1) {
 			printf("No host cable detected: ");
@@ -492,7 +485,7 @@ static int musb_usb_probe(struct udevice *dev)
 #else
 	pdata.mode = MUSB_PERIPHERAL;
 	host->host = musb_register(&pdata, &glue->dev, base);
-	if (!host->host)
+	if (IS_ERR_OR_NULL(host->host))
 		return -EIO;
 
 	printf("Allwinner mUSB OTG (Peripheral)\n");

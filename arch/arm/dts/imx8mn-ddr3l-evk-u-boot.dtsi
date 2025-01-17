@@ -4,6 +4,7 @@
  */
 
 #include "imx8mn-evk-u-boot.dtsi"
+#include "imx8mn-sec-def.h"
 
 / {
 	mcu_rdc {
@@ -40,15 +41,3 @@
 			  >;
 	};
 };
-
-&blob_1 {
-	filename = "ddr3_imem_1d_201810.bin";
-};
-
-&blob_2 {
-	filename = "ddr3_dmem_1d_201810.bin";
-};
-
-/delete-node/ &blob_3;
-
-/delete-node/ &blob_4;

@@ -1070,8 +1070,11 @@ static int rk_edp_probe(struct udevice *dev)
 
 	ret = reset_get_by_name(dev, "dp", &dp_rst);
 	if (ret) {
-		dev_err(dev, "failed to get dp reset (ret=%d)\n", ret);
-		return ret;
+		ret = reset_get_by_name(dev, "edp", &dp_rst);
+		if (ret) {
+			dev_err(dev, "failed to get dp reset (ret=%d)\n", ret);
+			return ret;
+		}
 	}
 
 	ret = reset_assert(&dp_rst);
@@ -1092,20 +1095,16 @@ static int rk_edp_probe(struct udevice *dev)
 
 	if (edp_data->chip_type == RK3288_DP) {
 		ret = clk_get_by_index(dev, 1, &clk);
-		if (ret >= 0) {
+		if (ret >= 0)
 			ret = clk_set_rate(&clk, 0);
-			clk_free(&clk);
-		}
 		if (ret) {
 			debug("%s: Failed to set EDP clock: ret=%d\n", __func__, ret);
 			return ret;
 		}
 	}
 	ret = clk_get_by_index(uc_plat->src_dev, 0, &clk);
-	if (ret >= 0) {
+	if (ret >= 0)
 		ret = clk_set_rate(&clk, 192000000);
-		clk_free(&clk);
-	}
 	if (ret < 0) {
 		debug("%s: Failed to set clock in source device '%s': ret=%d\n",
 		      __func__, uc_plat->src_dev->name, ret);
@@ -1156,6 +1155,7 @@ static const struct rockchip_dp_data rk3288_dp = {
 };
 
 static const struct udevice_id rockchip_dp_ids[] = {
+	{ .compatible = "rockchip,rk3288-dp", .data = (ulong)&rk3288_dp },
 	{ .compatible = "rockchip,rk3288-edp", .data = (ulong)&rk3288_dp },
 	{ .compatible = "rockchip,rk3399-edp", .data = (ulong)&rk3399_edp },
 	{ }

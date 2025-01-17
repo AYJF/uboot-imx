@@ -3,11 +3,14 @@
  * Copyright 2022 NXP
  */
 
+#include "imx93-u-boot.dtsi"
+
 / {
 	wdt-reboot {
 		compatible = "wdt-reboot";
 		wdt = <&wdog3>;
-		u-boot,dm-spl;
+		bootph-pre-ram;
+		bootph-some-ram;
 	};
 
 	aliases {
@@ -29,108 +32,125 @@
 	};
 };
 
+&A55_0 {
+	clocks = <&clk IMX93_CLK_A55_SEL>;
+};
+
+&A55_1 {
+	clocks = <&clk IMX93_CLK_A55_SEL>;
+};
+
 &{/soc@0} {
-	u-boot,dm-pre-reloc;
-	u-boot,dm-spl;
+	bootph-all;
+	bootph-pre-ram;
 };
 
 &aips1 {
-	u-boot,dm-spl;
-	u-boot,dm-pre-reloc;
+	bootph-pre-ram;
+	bootph-all;
 };
 
 &aips2 {
-	u-boot,dm-spl;
+	bootph-pre-ram;
+	bootph-some-ram;
 };
 
 &aips3 {
-	u-boot,dm-spl;
+	bootph-pre-ram;
+	bootph-some-ram;
 };
 
 &iomuxc {
-	u-boot,dm-spl;
+	bootph-pre-ram;
+	bootph-some-ram;
 };
 
 &reg_usdhc2_vmmc {
 	u-boot,off-on-delay-us = <20000>;
-	u-boot,dm-spl;
+	bootph-pre-ram;
 };
 
 &pinctrl_reg_usdhc2_vmmc {
-	u-boot,dm-spl;
+	bootph-pre-ram;
 };
 
 &pinctrl_uart1 {
-	u-boot,dm-spl;
+	bootph-pre-ram;
+	bootph-some-ram;
+};
+
+&pinctrl_usdhc1 {
+	bootph-pre-ram;
 };
 
 &pinctrl_usdhc2_gpio {
-	u-boot,dm-spl;
+	bootph-pre-ram;
 };
 
 &pinctrl_usdhc2 {
-	u-boot,dm-spl;
+	bootph-pre-ram;
 };
 
 &gpio1 {
-	u-boot,dm-spl;
+	bootph-pre-ram;
+	bootph-some-ram;
 };
 
 &gpio2 {
-	u-boot,dm-spl;
+	bootph-pre-ram;
+	bootph-some-ram;
 };
 
 &gpio3 {
-	u-boot,dm-spl;
+	bootph-pre-ram;
+	bootph-some-ram;
 };
 
 &gpio4 {
-	u-boot,dm-spl;
+	bootph-pre-ram;
+	bootph-some-ram;
 };
 
 &lpuart1 {
-	u-boot,dm-spl;
+	bootph-pre-ram;
+	bootph-some-ram;
 };
 
 &usdhc1 {
-	u-boot,dm-spl;
+	bootph-pre-ram;
 };
 
 &usdhc2 {
-	u-boot,dm-spl;
+	bootph-pre-ram;
 	fsl,signal-voltage-switch-extra-delay-ms = <8>;
 };
 
 &lpi2c1 {
-	u-boot,dm-spl;
+	bootph-pre-ram;
 };
 
 &lpi2c2 {
-	u-boot,dm-spl;
+	bootph-pre-ram;
 };
 
 &lpi2c3 {
-	u-boot,dm-spl;
+	bootph-pre-ram;
 };
 
 &{/soc@0/bus@44000000/i2c@44350000/pmic@25} {
-	u-boot,dm-spl;
+	bootph-pre-ram;
 };
 
 &{/soc@0/bus@44000000/i2c@44350000/pmic@25/regulators} {
-	u-boot,dm-spl;
+	bootph-pre-ram;
 };
 
 &pinctrl_lpi2c1 {
-	u-boot,dm-spl;
+	bootph-pre-ram;
 };
 
 &pinctrl_lpi2c2 {
-	u-boot,dm-spl;
-};
-
-&eqos {
-	compatible = "fsl,imx-eqos";
+	bootph-pre-ram;
 };
 
 &ethphy1 {
@@ -145,34 +165,40 @@
 };
 
 &s4muap {
-	u-boot,dm-spl;
+	bootph-pre-ram;
+	bootph-some-ram;
 	status = "okay";
 };
 
 &clk {
-	u-boot,dm-pre-reloc;
-	u-boot,dm-spl;
+	bootph-all;
+	bootph-pre-ram;
 	/delete-property/ assigned-clocks;
 	/delete-property/ assigned-clock-rates;
+	/delete-property/ assigned-clock-parents;
 };
 
 &osc_32k {
-	u-boot,dm-pre-reloc;
-	u-boot,dm-spl;
+	bootph-all;
+	bootph-pre-ram;
 };
 
 &osc_24m {
-	u-boot,dm-pre-reloc;
-	u-boot,dm-spl;
+	bootph-all;
+	bootph-pre-ram;
 };
 
 &clk_ext1 {
-	u-boot,dm-pre-reloc;
-	u-boot,dm-spl;
+	bootph-all;
+	bootph-pre-ram;
 };
 
 &lcdif {
 	assigned-clocks = <&clk IMX93_CLK_MEDIA_AXI>, <&clk IMX93_CLK_MEDIA_APB>;
 	assigned-clock-parents = <&clk IMX93_CLK_SYS_PLL_PFD1>, <&clk IMX93_CLK_SYS_PLL_PFD1_DIV2>;
 	assigned-clock-rates = <400000000>, <133333334>;
+};
+
+&parallel_disp_fmt {
+	/delete-property/ power-domains;
 };

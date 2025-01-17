@@ -9,7 +9,6 @@
  * (C) Copyright 2013 Luke Kenneth Casson Leighton <lkcl@lkcl.net>
  */
 
-#include <common.h>
 #include <asm/io.h>
 #include <asm/arch/clock.h>
 #include <asm/arch/prcm.h>
@@ -63,7 +62,7 @@ void clock_init_safe(void)
 	setbits_le32(&ccm->sata_clk_cfg, CCM_SATA_CTRL_ENABLE);
 #endif
 }
-#endif
+#endif /* CONFIG_SPL_BUILD */
 
 void clock_init_sec(void)
 {
@@ -172,7 +171,7 @@ void clock_set_pll1(unsigned int clk)
 		       &ccm->cpu_axi_cfg);
 	}
 }
-#endif
+#endif /* CONFIG_SPL_BUILD */
 
 void clock_set_pll3(unsigned int clk)
 {

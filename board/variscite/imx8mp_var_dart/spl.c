@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Copyright 2018-2019, 2021 NXP
- * Copyright 2020-2022 Variscite Ltd.
+ * Copyright 2020-2024 Variscite Ltd.
  *
  */
-#define DEBUG
+
 #include <common.h>
 #include <cpu_func.h>
 #include <hang.h>
@@ -31,11 +31,26 @@
 #include <dm/uclass-internal.h>
 #include <dm/device-internal.h>
 #include <asm/arch/ddr.h>
+#include <asm/sections.h>
 
 #include "../common/imx8_eeprom.h"
 #include "imx8mp_var_dart.h"
 
 DECLARE_GLOBAL_DATA_PTR;
+
+#define UART_PAD_CTRL	(PAD_CTL_DSE6 | PAD_CTL_FSEL1)
+
+static iomux_v3_cfg_t const uart_pads_dart[] = {
+	MX8MP_PAD_UART1_RXD__UART1_DCE_RX | MUX_PAD_CTRL(UART_PAD_CTRL),
+	MX8MP_PAD_UART1_TXD__UART1_DCE_TX | MUX_PAD_CTRL(UART_PAD_CTRL),
+};
+
+static iomux_v3_cfg_t const uart_pads_som[] = {
+	MX8MP_PAD_UART2_RXD__UART2_DCE_RX | MUX_PAD_CTRL(UART_PAD_CTRL),
+	MX8MP_PAD_UART2_TXD__UART2_DCE_TX | MUX_PAD_CTRL(UART_PAD_CTRL),
+};
+
+extern struct mxc_uart *mxc_base;
 
 static struct var_eeprom eeprom = {0};
 
@@ -71,6 +86,23 @@ static void spl_dram_init(void)
 	var_eeprom_read_header(&eeprom);
 	var_eeprom_adjust_dram(&eeprom, &dram_timing);
 	ddr_init(&dram_timing);
+}
+
+static void spl_uart_init(void)
+{
+	int board_id;
+
+	board_id = var_detect_board_id();
+	if (board_id == BOARD_ID_DART) {
+		imx_iomux_v3_setup_multiple_pads(uart_pads_dart,
+			ARRAY_SIZE(uart_pads_dart));
+		init_uart_clk(0);
+	} else if (board_id == BOARD_ID_SOM) {
+		imx_iomux_v3_setup_multiple_pads(uart_pads_som,
+			ARRAY_SIZE(uart_pads_som));
+		init_uart_clk(1);
+		mxc_base = (struct mxc_uart *)UART2_BASE_ADDR;
+	}
 }
 
 #if CONFIG_IS_ENABLED(POWER_LEGACY)
@@ -124,14 +156,7 @@ void spl_board_init(void)
 {
 	struct var_eeprom *ep = VAR_EEPROM_DATA;
 
-	if (IS_ENABLED(CONFIG_FSL_CAAM)) {
-		struct udevice *dev;
-		int ret;
-
-		ret = uclass_get_device_by_driver(UCLASS_MISC, DM_DRIVER_GET(caam_jr), &dev);
-		if (ret)
-			printf("Failed to initialize caam_jr: %d\n", ret);
-	}
+	arch_misc_init();
 
 	/* Set GIC clock to 500Mhz for OD VDD_SOC. Kernel driver does not allow to change it.
 	 * Should set the clock after PMIC setting done.
@@ -151,24 +176,12 @@ void spl_board_init(void)
 int board_fit_config_name_match(const char *name)
 {
 	int board_id = var_detect_board_id();
-	struct var_carrier_eeprom carrier_eeprom;
-	static char carrier_rev[CARRIER_REV_LEN] = {0};
 
-	if (board_id == BOARD_ID_DART) {
-		if (!carrier_rev[0]) {
-			var_carrier_eeprom_read(CARRIER_EEPROM_BUS_DART, CARRIER_EEPROM_ADDR, &carrier_eeprom);
-			var_carrier_eeprom_get_revision(&carrier_eeprom, carrier_rev, sizeof(carrier_rev));
-		}
-
-		if ((!strcmp(carrier_rev, "legacy")) &&
-			!strcmp(name, "imx8mp-var-dart-dt8mcustomboard-legacy"))
-			return 0;
-		else if ((strcmp(carrier_rev, "legacy")) &&
-			!strcmp(name, "imx8mp-var-dart-dt8mcustomboard"))
-			return 0;
-	}
-	else if ((board_id == BOARD_ID_SOM) && !strcmp(name, "imx8mp-var-som-symphony"))
+	if ((board_id == BOARD_ID_DART) && !strcmp(name, "imx8mp-var-dart-dt8mcustomboard")) {
 		return 0;
+	} else if ((board_id == BOARD_ID_SOM) && !strcmp(name, "imx8mp-var-som-symphony")) {
+		return 0;
+	}
 
 	return -1;
 }
@@ -236,7 +249,9 @@ void board_init_f(ulong dummy)
 	/* UART can be initialized only after DM setup in spl_early_init().
 	 * SOM and DART have different debug UARTs, board detection code
 	 * uses GPIO, which can be accessed only after DM is initialized.
-	*/
+	 */
+	spl_uart_init();
+
 	board_early_init_f();
 
 	/* Can run only after UART clock is enabled */

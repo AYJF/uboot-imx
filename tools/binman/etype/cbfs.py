@@ -12,6 +12,9 @@ from binman.cbfs_util import CbfsWriter
 from binman.entry import Entry
 from dtoc import fdt_util
 
+# This is imported if needed
+state = None
+
 class Entry_cbfs(Entry):
     """Coreboot Filesystem (CBFS)
 
@@ -292,4 +295,9 @@ class Entry_cbfs(Entry):
         # Recreate the data structure, leaving the data for this child alone,
         # so that child.data is used to pack into the FIP.
         self.ObtainContents(skip_entry=child)
-        return True
+        return super().WriteChildData(child)
+
+    def AddBintools(self, btools):
+        super().AddBintools(btools)
+        for entry in self._entries.values():
+            entry.AddBintools(btools)

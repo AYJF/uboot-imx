@@ -1,224 +1,231 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
- * Copyright 2018 NXP
- * Copyright 2019-2023 Variscite Ltd.
- *
- * SPDX-License-Identifier:	GPL-2.0+
+ * Copyright 2021 Collabora Ltd.
+ * Copyright 2018-2020 Variscite Ltd.
+ * Copyright 2023 DimOnOff Inc.
  */
 
 #include <common.h>
-#include <efi_loader.h>
+#include <dm.h>
 #include <env.h>
-#include <init.h>
+#include <fdtdec.h>
+#include <fdt_support.h>
+#include <i2c_eeprom.h>
+#include <malloc.h>
 #include <asm/global_data.h>
-#include <init.h>
-#include <miiphy.h>
-#include <netdev.h>
-#include <asm/mach-imx/iomux-v3.h>
-#include <asm-generic/gpio.h>
-#include <asm/arch/imx8mn_pins.h>
-#include <asm/arch/clock.h>
-#include <asm/arch/sys_proto.h>
-#include <asm/mach-imx/gpio.h>
-#include <asm/mach-imx/mxc_i2c.h>
-#include <i2c.h>
-#include <asm/io.h>
-#include <usb.h>
-#include <imx_sip.h>
-#include <linux/arm-smccc.h>
-
-#include "../common/extcon-ptn5150.h"
-#include "../common/imx8_eeprom.h"
-#include "imx8mn_var_som.h"
-
-int var_setup_mac(struct var_eeprom *eeprom);
+#include <dt-bindings/gpio/gpio.h>
+#include <linux/libfdt.h>
 
 DECLARE_GLOBAL_DATA_PTR;
 
-#define UART_PAD_CTRL	(PAD_CTL_DSE6 | PAD_CTL_FSEL1)
-#define WDOG_PAD_CTRL	(PAD_CTL_DSE6 | PAD_CTL_ODE | PAD_CTL_PUE | PAD_CTL_PE)
+/* Optional SOM features flags. */
+#define VAR_EEPROM_F_WIFI		BIT(0)
+#define VAR_EEPROM_F_ETH		BIT(1) /* Ethernet PHY on SOM. */
+#define VAR_EEPROM_F_AUDIO		BIT(2)
+#define VAR_EEPROM_F_MX8M_LVDS		BIT(3) /* i.MX8MM, i.MX8MN, i.MX8MQ only */
+#define VAR_EEPROM_F_MX8Q_SOC_ID	BIT(3) /* 0 = i.MX8QM, 1 = i.MX8QP */
+#define VAR_EEPROM_F_NAND		BIT(4)
 
-static iomux_v3_cfg_t const uart4_pads[] = {
-	IMX8MN_PAD_UART4_RXD__UART4_DCE_RX | MUX_PAD_CTRL(UART_PAD_CTRL),
-	IMX8MN_PAD_UART4_TXD__UART4_DCE_TX | MUX_PAD_CTRL(UART_PAD_CTRL),
-};
+#define VAR_IMX8_EEPROM_MAGIC	0x384D /* "8M" */
 
-static iomux_v3_cfg_t const wdog_pads[] = {
-	IMX8MN_PAD_GPIO1_IO02__WDOG1_WDOG_B  | MUX_PAD_CTRL(WDOG_PAD_CTRL),
-};
+/* Number of DRAM adjustment tables. */
+#define DRAM_TABLES_NUM 7
 
-#if CONFIG_IS_ENABLED(EFI_HAVE_CAPSULE_SUPPORT)
-struct efi_fw_image fw_images[] = {
-       {
-               .image_type_id = IMX_BOOT_IMAGE_GUID,
-               .fw_name = u"IMX8MN-EVK-RAW",
-               .image_index = 1,
-       },
-};
-
-struct efi_capsule_update_info update_info = {
-       .dfu_string = "mmc 2=flash-bin raw 0 0x2000 mmcpart 1",
-       .images = fw_images,
-};
-
-u8 num_image_type_guids = ARRAY_SIZE(fw_images);
-#endif /* EFI_HAVE_CAPSULE_SUPPORT */
-
-int board_early_init_f(void)
-{
-	struct wdog_regs *wdog = (struct wdog_regs *)WDOG1_BASE_ADDR;
-
-	imx_iomux_v3_setup_multiple_pads(wdog_pads, ARRAY_SIZE(wdog_pads));
-
-	set_wdog_reset(wdog);
-
-	imx_iomux_v3_setup_multiple_pads(uart4_pads, ARRAY_SIZE(uart4_pads));
-
-	init_uart_clk(3);
-
-	return 0;
-}
-
-#ifdef CONFIG_FEC_MXC
-static void setup_fec(void)
-{
-	struct iomuxc_gpr_base_regs *const iomuxc_gpr_regs
-		= (struct iomuxc_gpr_base_regs *) IOMUXC_GPR_BASE_ADDR;
-
-	/* Use 125M anatop REF_CLK1 for ENET1, not from external */
-	clrsetbits_le32(&iomuxc_gpr_regs->gpr[1],
-			IOMUXC_GPR_GPR1_GPR_ENET1_TX_CLK_SEL_SHIFT, 0);
-}
-#endif
-
-#ifdef CONFIG_CI_UDC
-
-#ifdef CONFIG_EXTCON_PTN5150
-static struct extcon_ptn5150 usb_ptn5150;
-#endif
-
-int board_usb_init(int index, enum usb_init_type init)
-{
-	imx8m_usb_power(index, true);
-
-#if (!defined(CONFIG_SPL_BUILD) && defined(CONFIG_EXTCON_PTN5150))
-	if (index == 0) {
-		/* Verify port is in proper mode */
-		int phy_mode = extcon_ptn5150_phy_mode(&usb_ptn5150);
-
-		//Only verify phy_mode if ptn5150 is initialized
-		if (phy_mode >= 0 && phy_mode != init)
-			return -ENODEV;
-	}
-#endif
-
-	return 0;
-}
-
-int board_usb_cleanup(int index, enum usb_init_type init)
-{
-	imx8m_usb_power(index, false);
-
-	return 0;
-}
-
-#ifdef CONFIG_EXTCON_PTN5150
-int board_ehci_usb_phy_mode(struct udevice *dev)
-{
-	int usb_phy_mode = extcon_ptn5150_phy_mode(&usb_ptn5150);
-
-	/* Default to host mode if not connected */
-	if (usb_phy_mode < 0)
-		usb_phy_mode = USB_INIT_HOST;
-
-	return usb_phy_mode;
-}
-#endif
-#endif
+struct var_imx8_eeprom_info {
+	u16 magic;
+	u8 partnumber[3];         /* Part number */
+	u8 assembly[10];          /* Assembly number */
+	u8 date[9];               /* Build date */
+	u8 mac[6];                /* MAC address */
+	u8 somrev;
+	u8 eeprom_version;
+	u8 features;              /* SOM features */
+	u8 dramsize;              /* DRAM size */
+	u8 off[DRAM_TABLES_NUM + 1]; /* DRAM table offsets */
+	u8 partnumber2[5];        /* Part number 2 */
+} __packed;
 
 int board_init(void)
 {
-	if (CONFIG_IS_ENABLED(FEC_MXC)) {
-		setup_fec();
+	return 0;
+}
+
+int board_mmc_get_env_dev(int devno)
+{
+	return devno;
+}
+
+#if !defined(CONFIG_SPL_BUILD)
+
+#if defined(CONFIG_DISPLAY_BOARDINFO)
+
+static void display_som_infos(struct var_imx8_eeprom_info *info)
+{
+	char partnumber[sizeof(info->partnumber) +
+			sizeof(info->partnumber2) + 1];
+	char assembly[sizeof(info->assembly) + 1];
+	char date[sizeof(info->date) + 1];
+
+	/* Read first part of P/N. */
+	memcpy(partnumber, info->partnumber, sizeof(info->partnumber));
+
+	/* Read second part of P/N. */
+	if (info->eeprom_version >= 3)
+		memcpy(partnumber + sizeof(info->partnumber), info->partnumber2,
+		       sizeof(info->partnumber2));
+
+	memcpy(assembly, info->assembly, sizeof(info->assembly));
+	memcpy(date, info->date, sizeof(info->date));
+
+	/* Make sure strings are null terminated. */
+	partnumber[sizeof(partnumber) - 1] = '\0';
+	assembly[sizeof(assembly) - 1] = '\0';
+	date[sizeof(date) - 1] = '\0';
+
+	printf("SOM board: P/N: %s, Assy: %s, Date: %s\n"
+	       "           Wifi: %s, EthPhy: %s, Rev: %d\n",
+	       partnumber, assembly, date,
+	       info->features & VAR_EEPROM_F_WIFI ? "yes" : "no",
+	       info->features & VAR_EEPROM_F_ETH ? "yes" : "no",
+	       info->somrev);
+}
+
+static int var_read_som_eeprom(struct var_imx8_eeprom_info *info)
+{
+	const char *path = "eeprom-som";
+	struct udevice *dev;
+	int ret, off;
+
+	off = fdt_path_offset(gd->fdt_blob, path);
+	if (off < 0) {
+		pr_err("%s: fdt_path_offset() failed: %d\n", __func__, off);
+		return off;
+	}
+
+	ret = uclass_get_device_by_of_offset(UCLASS_I2C_EEPROM, off, &dev);
+	if (ret) {
+		pr_err("%s: uclass_get_device_by_of_offset() failed: %d\n",
+		       __func__, ret);
+		return ret;
+	}
+
+	ret = i2c_eeprom_read(dev, 0, (uint8_t *)info,
+			      sizeof(struct var_imx8_eeprom_info));
+	if (ret) {
+		pr_err("%s: i2c_eeprom_read() failed: %d\n", __func__, ret);
+		return ret;
+	}
+
+	if (htons(info->magic) != VAR_IMX8_EEPROM_MAGIC) {
+		/* Do not fail if the content is invalid */
+		pr_err("Board: Invalid board info magic: 0x%08x, expected 0x%08x\n",
+		       htons(info->magic), VAR_IMX8_EEPROM_MAGIC);
 	}
 
 	return 0;
 }
 
-int var_get_som_rev(struct var_eeprom *ep)
+int checkboard(void)
 {
-	switch (ep->somrev) {
-	case 0:
-		return SOM_REV_10;
-	case 1:
-		return SOM_REV_11;
-	case 2:
-		return SOM_REV_12;
-	case 3:
-		return SOM_REV_13;
-	default:
-		return UNKNOWN_REV;
-	}
-}
+	int rc;
+	struct var_imx8_eeprom_info *info;
 
-#define SDRAM_SIZE_STR_LEN 5
+	info = malloc(sizeof(struct var_imx8_eeprom_info));
+	if (!info)
+		return -ENOMEM;
 
-int board_late_init(void)
-{
-	int som_rev;
-	struct var_eeprom *ep = VAR_EEPROM_DATA;
-	char sdram_size_str[SDRAM_SIZE_STR_LEN];
-	struct var_carrier_eeprom carrier_eeprom;
-	char carrier_rev[CARRIER_REV_LEN] = {0};
+	rc = var_read_som_eeprom(info);
+	if (rc)
+		return rc;
 
-	if (CONFIG_IS_ENABLED(EXTCON_PTN5150)) {
-		extcon_ptn5150_setup(&usb_ptn5150);
-	}
+	display_som_infos(info);
 
-
-#ifdef CONFIG_FEC_MXC
-	var_setup_mac(ep);
-#endif
-	var_eeprom_print_prod_info(ep);
-
-	som_rev = var_get_som_rev(ep);
-
-	printf("board_late_init: som_rev=%d\n", som_rev);
-
-	snprintf(sdram_size_str, SDRAM_SIZE_STR_LEN, "%d",
-		(int) (gd->ram_size / 1024 / 1024));
-	env_set("sdram_size", sdram_size_str);
-
-	env_set("board_name", "VAR-SOM-MX8M-NANO");
-	switch (som_rev) {
-	case SOM_REV_10:
-		env_set("som_rev", "som_rev10");
-		break;
-	case SOM_REV_11:
-		env_set("som_rev", "som_rev11");
-		break;
-	case SOM_REV_12:
-		env_set("som_rev", "som_rev12");
-		break;
-	case SOM_REV_13:
-		env_set("som_rev", "som_rev13");
-		break;
-	}
-	var_carrier_eeprom_read(CARRIER_EEPROM_BUS, CARRIER_EEPROM_ADDR, &carrier_eeprom);
-	var_carrier_eeprom_get_revision(&carrier_eeprom, carrier_rev, sizeof(carrier_rev));
-	env_set("carrier_rev", carrier_rev);
-
-#ifdef CONFIG_ENV_IS_IN_MMC
-	board_late_mmc_env_init();
-#endif
+#if defined(CONFIG_BOARD_TYPES)
+	gd->board_type = info->features;
+#endif /* CONFIG_BOARD_TYPES */
 
 	return 0;
 }
 
-#ifdef CONFIG_FSL_FASTBOOT
-#ifdef CONFIG_ANDROID_RECOVERY
-int is_recovery_key_pressing(void)
+#endif /* CONFIG_DISPLAY_BOARDINFO */
+
+static int insert_gpios_prop(void *blob, int node, const char *prop,
+			     unsigned int phandle, u32 gpio, u32 flags)
 {
-       return 0; /*TODO*/
+	fdt32_t val[3] = { cpu_to_fdt32(phandle), cpu_to_fdt32(gpio),
+			   cpu_to_fdt32(flags) };
+	return fdt_setprop(blob, node, prop, &val, sizeof(val));
 }
-#endif /*CONFIG_ANDROID_RECOVERY*/
-#endif /*CONFIG_FSL_FASTBOOT*/
+
+static int configure_phy_reset_gpios(void *blob)
+{
+	int node;
+	int phynode;
+	int ret;
+	u32 handle;
+	u32 gpio;
+	u32 flags;
+	char path[1024];
+	const char *eth_alias = "ethernet0";
+
+	snprintf(path, sizeof(path), "%s/mdio/ethernet-phy@4",
+		 fdt_get_alias(blob, eth_alias));
+
+	phynode = fdt_path_offset(blob, path);
+	if (phynode < 0) {
+		pr_err("%s(): unable to locate PHY node: %s\n", __func__, path);
+		return 0;
+	}
+
+	if (gd_board_type() & VAR_EEPROM_F_ETH) {
+		snprintf(path, sizeof(path), "%s",
+			 fdt_get_alias(blob, "gpio0")); /* Alias to gpio1 */
+		gpio = 9;
+		flags = GPIO_ACTIVE_LOW;
+	} else {
+		snprintf(path, sizeof(path), "%s/gpio@20",
+			 fdt_get_alias(blob, "i2c1")); /* Alias to i2c2 */
+		gpio = 5;
+		flags = GPIO_ACTIVE_HIGH;
+	}
+
+	node = fdt_path_offset(blob, path);
+	if (node < 0) {
+		pr_err("%s(): unable to locate GPIO node: %s\n", __func__,
+		       path);
+		return 0;
+	}
+
+	handle = fdt_get_phandle(blob, node);
+	if (handle < 0) {
+		pr_err("%s(): unable to locate GPIO controller handle: %s\n",
+		       __func__, path);
+	}
+
+	ret = insert_gpios_prop(blob, phynode, "reset-gpios",
+				handle, gpio, flags);
+	if (ret < 0) {
+		pr_err("%s(): failed to set reset-gpios property\n", __func__);
+		return ret;
+	}
+
+	return 0;
+}
+
+#if defined(CONFIG_OF_BOARD_FIXUP)
+int board_fix_fdt(void *blob)
+{
+	/* Fix U-Boot device tree: */
+	return configure_phy_reset_gpios(blob);
+}
+#endif /* CONFIG_OF_BOARD_FIXUP */
+
+#if defined(CONFIG_OF_BOARD_SETUP)
+int ft_board_setup(void *blob, struct bd_info *bd)
+{
+	/* Fix kernel device tree: */
+	return configure_phy_reset_gpios(blob);
+}
+#endif /* CONFIG_OF_BOARD_SETUP */
+
+#endif /* CONFIG_SPL_BUILD */

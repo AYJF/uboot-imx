@@ -1,8 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * Copyright 2018 NXP
- * Copyright 2018-2020 Variscite Ltd.
- *
- * SPDX-License-Identifier:	GPL-2.0+
+ * Copyright 2018-2024 Variscite Ltd.
  */
 
 #include <common.h>
@@ -33,9 +32,9 @@ extern int var_setup_mac(struct var_eeprom *eeprom);
 #define GPIO_PAD_CTRL	(PAD_CTL_DSE6 | PAD_CTL_FSEL1 | PAD_CTL_PUE | PAD_CTL_PE)
 
 #ifdef CONFIG_SPL_BUILD
-#define ID_GPIO 	IMX_GPIO_NR(2, 11)
+#define ID_GPIO		IMX_GPIO_NR(2, 11)
 
-static iomux_v3_cfg_t const id_pads[] = {
+static const iomux_v3_cfg_t id_pads[] = {
 	IMX8MM_PAD_SD1_STROBE_GPIO2_IO11 | MUX_PAD_CTRL(GPIO_PAD_CTRL),
 };
 
@@ -51,6 +50,7 @@ int get_board_id(void)
 	gpio_direction_input(ID_GPIO);
 
 	board_id = gpio_get_value(ID_GPIO) ? DART_MX8M_MINI : VAR_SOM_MX8M_MINI;
+	gpio_free(ID_GPIO);
 
 	return board_id;
 }
@@ -73,40 +73,11 @@ int get_board_id(void)
 }
 #endif
 
-int var_get_som_rev(struct var_eeprom *ep)
-{
-	switch (ep->somrev) {
-	case 0:
-		return SOM_REV_10;
-	case 1:
-		return SOM_REV_11;
-	case 2:
-		return SOM_REV_12;
-	case 3:
-		return SOM_REV_13;
-	default:
-		return UNKNOWN_REV;
-	}
-}
-
-#define UART_PAD_CTRL	(PAD_CTL_DSE6 | PAD_CTL_FSEL1)
 #define WDOG_PAD_CTRL	(PAD_CTL_DSE6 | PAD_CTL_ODE | PAD_CTL_PUE | PAD_CTL_PE)
 
-static iomux_v3_cfg_t const uart1_pads[] = {
-	IMX8MM_PAD_UART1_RXD_UART1_RX | MUX_PAD_CTRL(UART_PAD_CTRL),
-	IMX8MM_PAD_UART1_TXD_UART1_TX | MUX_PAD_CTRL(UART_PAD_CTRL),
-};
-
-static iomux_v3_cfg_t const uart4_pads[] = {
-	IMX8MM_PAD_UART4_RXD_UART4_RX | MUX_PAD_CTRL(UART_PAD_CTRL),
-	IMX8MM_PAD_UART4_TXD_UART4_TX | MUX_PAD_CTRL(UART_PAD_CTRL),
-};
-
-static iomux_v3_cfg_t const wdog_pads[] = {
+static const iomux_v3_cfg_t wdog_pads[] = {
 	IMX8MM_PAD_GPIO1_IO02_WDOG1_WDOG_B  | MUX_PAD_CTRL(WDOG_PAD_CTRL),
 };
-
-extern struct mxc_uart *mxc_base;
 
 #if CONFIG_IS_ENABLED(EFI_HAVE_CAPSULE_SUPPORT)
 struct efi_fw_image fw_images[] = {
@@ -127,23 +98,11 @@ u8 num_image_type_guids = ARRAY_SIZE(fw_images);
 
 int board_early_init_f(void)
 {
-	int id;
 	struct wdog_regs *wdog = (struct wdog_regs *)WDOG1_BASE_ADDR;
 
 	imx_iomux_v3_setup_multiple_pads(wdog_pads, ARRAY_SIZE(wdog_pads));
 
 	set_wdog_reset(wdog);
-
-	id = get_board_id();
-
-	if (id == DART_MX8M_MINI) {
-		init_uart_clk(0);
-		imx_iomux_v3_setup_multiple_pads(uart1_pads, ARRAY_SIZE(uart1_pads));
-	}else if (id == VAR_SOM_MX8M_MINI) {
-		init_uart_clk(3);
-		mxc_base = (struct mxc_uart *)UART4_BASE_ADDR;
-		imx_iomux_v3_setup_multiple_pads(uart4_pads, ARRAY_SIZE(uart4_pads));
-	}
 
 	return 0;
 }
@@ -176,7 +135,7 @@ int board_usb_init(int index, enum usb_init_type init)
 		/* Verify port is in proper mode */
 		int phy_mode = extcon_ptn5150_phy_mode(&usb_ptn5150);
 
-		//Only verify phy_mode if ptn5150 is initialized
+		/* Only verify phy_mode if ptn5150 is initialized */
 		if (phy_mode >= 0 && phy_mode != init)
 			return -ENODEV;
 	}
@@ -218,12 +177,12 @@ int board_init(void)
 #define SDRAM_SIZE_STR_LEN 5
 int board_late_init(void)
 {
-	int som_rev;
 	char sdram_size_str[SDRAM_SIZE_STR_LEN];
 	int id = get_board_id();
 	struct var_eeprom *ep = VAR_EEPROM_DATA;
 	struct var_carrier_eeprom carrier_eeprom;
 	char carrier_rev[CARRIER_REV_LEN] = {0};
+	char som_rev[CARRIER_REV_LEN] = {0};
 
 #ifdef CONFIG_EXTCON_PTN5150
 	extcon_ptn5150_setup(&usb_ptn5150);
@@ -234,38 +193,27 @@ int board_late_init(void)
 #endif
 	var_eeprom_print_prod_info(ep);
 
-	som_rev = var_get_som_rev(ep);
+	/* SoM Rev ENV*/
+	snprintf(som_rev, CARRIER_REV_LEN, "%ld.%ld", SOMREV_MAJOR(ep->somrev), SOMREV_MINOR(ep->somrev));
+	env_set("som_rev", som_rev);
 
-	snprintf(sdram_size_str, SDRAM_SIZE_STR_LEN, "%d", (int) (gd->ram_size / 1024 / 1024));
+	snprintf(sdram_size_str, SDRAM_SIZE_STR_LEN, "%d", (int)(gd->ram_size / 1024 / 1024));
 	env_set("sdram_size", sdram_size_str);
 
-	if (id == VAR_SOM_MX8M_MINI) {
-		env_set("board_name", "VAR-SOM-MX8M-MINI");
-		env_set("console", "ttymxc3,115200");
-		switch (som_rev) {
-		case SOM_REV_10:
-			env_set("som_rev", "som_rev10");
-			break;
-		case SOM_REV_11:
-			env_set("som_rev", "som_rev11");
-			break;
-		case SOM_REV_12:
-			env_set("som_rev", "som_rev12");
-			break;
-		case SOM_REV_13:
-			env_set("som_rev", "som_rev13");
-			break;
-		}
-		var_carrier_eeprom_read(CARRIER_EEPROM_BUS_SOM, CARRIER_EEPROM_ADDR, &carrier_eeprom);
+	if (id != UNKNOWN_BOARD) {
 		var_carrier_eeprom_get_revision(&carrier_eeprom, carrier_rev, sizeof(carrier_rev));
 		env_set("carrier_rev", carrier_rev);
-	}
-	else if (id == DART_MX8M_MINI) {
-		env_set("board_name", "DART-MX8M-MINI");
+		/* SoM Features ENV */
+		env_set("som_has_wbe", (ep->features & VAR_EEPROM_F_WBE) ? "1" : "0");
 
-		var_carrier_eeprom_read(CARRIER_EEPROM_BUS_DART, CARRIER_EEPROM_ADDR, &carrier_eeprom);
-		var_carrier_eeprom_get_revision(&carrier_eeprom, carrier_rev, sizeof(carrier_rev));
-		env_set("carrier_rev", carrier_rev);
+		if (id == VAR_SOM_MX8M_MINI) {
+			env_set("board_name", "VAR-SOM-MX8M-MINI");
+			env_set("console", "ttymxc3,115200");
+			var_carrier_eeprom_read(CARRIER_EEPROM_BUS_SOM, CARRIER_EEPROM_ADDR, &carrier_eeprom);
+		} else if (id == DART_MX8M_MINI) {
+			env_set("board_name", "DART-MX8M-MINI");
+			var_carrier_eeprom_read(CARRIER_EEPROM_BUS_DART, CARRIER_EEPROM_ADDR, &carrier_eeprom);
+		}
 	}
 
 #ifdef CONFIG_ENV_IS_IN_MMC
@@ -281,7 +229,7 @@ int board_late_init(void)
 #define BACK_KEY IMX_GPIO_NR(4, 6)
 #define BACK_PAD_CTRL	(PAD_CTL_DSE6 | PAD_CTL_HYS | PAD_CTL_PUE | PAD_CTL_PE)
 
-static iomux_v3_cfg_t const back_pads[] = {
+static const iomux_v3_cfg_t back_pads[] = {
 	IMX8MM_PAD_SAI1_RXD4_GPIO4_IO6 | MUX_PAD_CTRL(BACK_PAD_CTRL),
 };
 

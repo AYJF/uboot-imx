@@ -11,9 +11,11 @@
 #include <generic-phy.h>
 #include <linux/bitfield.h>
 #include <linux/bitops.h>
-#include <linux/err.h>
 #include <linux/delay.h>
+#include <linux/err.h>
 #include <clk.h>
+#include <dm/device_compat.h>
+#include <power/regulator.h>
 
 #define PHY_CTRL0			0x0
 #define PHY_CTRL0_REF_SSP_EN		BIT(2)
@@ -70,22 +72,52 @@
 #define PHY_STS0_FSVPLUS		BIT(3)
 #define PHY_STS0_FSVMINUS		BIT(2)
 
+enum imx8mpq_phy_type {
+	IMX8MQ_PHY,
+	IMX8MP_PHY,
+};
+
 struct imx8mq_usb_phy {
-#if CONFIG_IS_ENABLED(CLK)
 	struct clk phy_clk;
-#endif
 	void __iomem *base;
+	enum imx8mpq_phy_type type;
+	struct udevice *vbus_supply;
 };
 
 static const struct udevice_id imx8mq_usb_phy_of_match[] = {
-	{
-		.compatible = "fsl,imx8mq-usb-phy",
-	},
-	{
-		.compatible = "fsl,imx8mp-usb-phy",
-	},
+	{ .compatible = "fsl,imx8mq-usb-phy", .data = IMX8MQ_PHY },
+	{ .compatible = "fsl,imx8mp-usb-phy", .data = IMX8MP_PHY },
 	{},
 };
+
+static int imx8mq_usb_phy_init(struct phy *usb_phy)
+{
+	struct udevice *dev = usb_phy->dev;
+	struct imx8mq_usb_phy *imx_phy = dev_get_priv(dev);
+	u32 value;
+
+	value = readl(imx_phy->base + PHY_CTRL1);
+	value &= ~(PHY_CTRL1_VDATSRCENB0 | PHY_CTRL1_VDATDETENB0 |
+		   PHY_CTRL1_COMMONONN);
+	value |= PHY_CTRL1_RESET | PHY_CTRL1_ATERESET;
+	writel(value, imx_phy->base + PHY_CTRL1);
+
+	value = readl(imx_phy->base + PHY_CTRL0);
+	value |= PHY_CTRL0_REF_SSP_EN;
+	value &= ~PHY_CTRL0_SSC_RANGE_MASK;
+	value |= PHY_CTRL0_SSC_RANGE_4003PPM;
+	writel(value, imx_phy->base + PHY_CTRL0);
+
+	value = readl(imx_phy->base + PHY_CTRL2);
+	value |= PHY_CTRL2_TXENABLEN0;
+	writel(value, imx_phy->base + PHY_CTRL2);
+
+	value = readl(imx_phy->base + PHY_CTRL1);
+	value &= ~(PHY_CTRL1_RESET | PHY_CTRL1_ATERESET);
+	writel(value, imx_phy->base + PHY_CTRL1);
+
+	return 0;
+}
 
 static int imx8mp_usb_phy_init(struct phy *usb_phy)
 {
@@ -126,38 +158,15 @@ static int imx8mp_usb_phy_init(struct phy *usb_phy)
 	return 0;
 }
 
-static int imx8mq_usb_phy_init(struct phy *usb_phy)
+static int imx8mpq_usb_phy_init(struct phy *usb_phy)
 {
 	struct udevice *dev = usb_phy->dev;
 	struct imx8mq_usb_phy *imx_phy = dev_get_priv(dev);
-	u32 value;
 
-	if (ofnode_device_is_compatible(dev_ofnode(dev),
-		"fsl,imx8mp-usb-phy")) {
+	if (imx_phy->type == IMX8MP_PHY)
 		return imx8mp_usb_phy_init(usb_phy);
-	}
-
-	value = readl(imx_phy->base + PHY_CTRL1);
-	value &= ~(PHY_CTRL1_VDATSRCENB0 | PHY_CTRL1_VDATDETENB0 |
-		   PHY_CTRL1_COMMONONN);
-	value |= PHY_CTRL1_RESET | PHY_CTRL1_ATERESET;
-	writel(value, imx_phy->base + PHY_CTRL1);
-
-	value = readl(imx_phy->base + PHY_CTRL0);
-	value |= PHY_CTRL0_REF_SSP_EN;
-	value &= ~PHY_CTRL0_SSC_RANGE_MASK;
-	value |= PHY_CTRL0_SSC_RANGE_4003PPM;
-	writel(value, imx_phy->base + PHY_CTRL0);
-
-	value = readl(imx_phy->base + PHY_CTRL2);
-	value |= PHY_CTRL2_TXENABLEN0;
-	writel(value, imx_phy->base + PHY_CTRL2);
-
-	value = readl(imx_phy->base + PHY_CTRL1);
-	value &= ~(PHY_CTRL1_RESET | PHY_CTRL1_ATERESET);
-	writel(value, imx_phy->base + PHY_CTRL1);
-
-	return 0;
+	else
+		return imx8mq_usb_phy_init(usb_phy);
 }
 
 static int imx8mq_usb_phy_power_on(struct phy *usb_phy)
@@ -165,15 +174,23 @@ static int imx8mq_usb_phy_power_on(struct phy *usb_phy)
 	struct udevice *dev = usb_phy->dev;
 	struct imx8mq_usb_phy *imx_phy = dev_get_priv(dev);
 	u32 value;
-
-#if CONFIG_IS_ENABLED(CLK)
 	int ret;
-	ret = clk_enable(&imx_phy->phy_clk);
-	if (ret) {
-		printf("Failed to enable usb phy clock\n");
-		return ret;
+
+	if (CONFIG_IS_ENABLED(CLK)) {
+		ret = clk_enable(&imx_phy->phy_clk);
+		if (ret) {
+			dev_err(dev, "Failed to enable usb phy clock: %d\n", ret);
+			return ret;
+		}
 	}
-#endif
+
+	if (CONFIG_IS_ENABLED(DM_REGULATOR) && imx_phy->vbus_supply) {
+		ret = regulator_set_enable_if_allowed(imx_phy->vbus_supply, true);
+		if (ret && ret != -ENOSYS) {
+			dev_err(dev, "Failed to enable VBUS regulator: %d\n", ret);
+			goto err;
+		}
+	}
 
 	/* Disable rx term override */
 	value = readl(imx_phy->base + PHY_CTRL6);
@@ -181,6 +198,11 @@ static int imx8mq_usb_phy_power_on(struct phy *usb_phy)
 	writel(value, imx_phy->base + PHY_CTRL6);
 
 	return 0;
+
+err:
+	if (CONFIG_IS_ENABLED(CLK))
+		clk_disable(&imx_phy->phy_clk);
+	return ret;
 }
 
 static int imx8mq_usb_phy_power_off(struct phy *usb_phy)
@@ -188,50 +210,60 @@ static int imx8mq_usb_phy_power_off(struct phy *usb_phy)
 	struct udevice *dev = usb_phy->dev;
 	struct imx8mq_usb_phy *imx_phy = dev_get_priv(dev);
 	u32 value;
+	int ret;
 
 	/* Override rx term to be 0 */
 	value = readl(imx_phy->base + PHY_CTRL6);
 	value |= PHY_CTRL6_RXTERM_OVERRIDE_SEL;
 	writel(value, imx_phy->base + PHY_CTRL6);
 
-#if CONFIG_IS_ENABLED(CLK)
-	clk_disable(&imx_phy->phy_clk);
-#endif
+	if (CONFIG_IS_ENABLED(CLK))
+		clk_disable(&imx_phy->phy_clk);
+
+	if (CONFIG_IS_ENABLED(DM_REGULATOR) && imx_phy->vbus_supply) {
+		ret = regulator_set_enable_if_allowed(imx_phy->vbus_supply, false);
+		if (ret && ret != -ENOSYS) {
+			dev_err(dev, "Failed to disable VBUS regulator: %d\n", ret);
+			return ret;
+		}
+	}
 
 	return 0;
 }
 
-static int imx8mq_usb_phy_exit(struct phy *usb_phy)
-{
-	return imx8mq_usb_phy_power_off(usb_phy);
-}
-
 struct phy_ops imx8mq_usb_phy_ops = {
-	.init = imx8mq_usb_phy_init,
+	.init = imx8mpq_usb_phy_init,
 	.power_on = imx8mq_usb_phy_power_on,
 	.power_off = imx8mq_usb_phy_power_off,
-	.exit = imx8mq_usb_phy_exit,
 };
 
 int imx8mq_usb_phy_probe(struct udevice *dev)
 {
 	struct imx8mq_usb_phy *priv = dev_get_priv(dev);
+	int ret;
 
+	priv->type = dev_get_driver_data(dev);
 	priv->base = dev_read_addr_ptr(dev);
 
 	if (!priv->base)
 		return -EINVAL;
 
-#if CONFIG_IS_ENABLED(CLK)
-	int ret;
-
-	/* Assigned clock already set clock */
-	ret = clk_get_by_name(dev, "phy", &priv->phy_clk);
-	if (ret) {
-		printf("Failed to get usb phy clock\n");
-		return ret;
+	if (CONFIG_IS_ENABLED(CLK)) {
+		ret = clk_get_by_name(dev, "phy", &priv->phy_clk);
+		if (ret) {
+			dev_err(dev, "Failed to get usb phy clock %d\n", ret);
+			return ret;
+		}
 	}
-#endif
+
+	if (CONFIG_IS_ENABLED(DM_REGULATOR)) {
+		ret = device_get_supply_regulator(dev, "vbus-supply",
+						  &priv->vbus_supply);
+		if (ret && ret != -ENOENT) {
+			dev_err(dev, "Failed to get VBUS regulator: %d\n", ret);
+			return ret;
+		}
+	}
 
 	return 0;
 }

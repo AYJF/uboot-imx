@@ -2,7 +2,7 @@
 /**
  * Driver for NXP PTN5150 CC LOGIC USB EXTCON support
  *
- * Copyright 2022 Variscite Ltd.
+ * Copyright 2023 Variscite Ltd.
  * Author: Nate Drude <nate.d@variscite.com>
  */
 #ifndef __EXTCON_PTN5150_H

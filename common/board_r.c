@@ -13,8 +13,12 @@
 #include <api.h>
 #include <bootstage.h>
 #include <cpu_func.h>
+#include <cyclic.h>
+#include <display_options.h>
 #include <exports.h>
+#ifdef CONFIG_MTD_NOR_FLASH
 #include <flash.h>
+#endif
 #include <hang.h>
 #include <image.h>
 #include <irq_func.h>
@@ -61,6 +65,7 @@
 #include <wdt.h>
 #include <asm-generic/gpio.h>
 #include <efi_loader.h>
+#include <relocate.h>
 #ifdef CONFIG_FSL_FASTBOOT
 #include <fb_fsl.h>
 #endif
@@ -123,10 +128,10 @@ static int initr_reloc_global_data(void)
 {
 #ifdef __ARM__
 	monitor_flash_len = _end - __image_copy_start;
-#elif defined(CONFIG_NDS32) || defined(CONFIG_RISCV)
-	monitor_flash_len = (ulong)&_end - (ulong)&_start;
+#elif defined(CONFIG_RISCV)
+	monitor_flash_len = (ulong)_end - (ulong)_start;
 #elif !defined(CONFIG_SANDBOX) && !defined(CONFIG_NIOS2)
-	monitor_flash_len = (ulong)&__init_end - gd->relocaddr;
+	monitor_flash_len = (ulong)__init_end - gd->relocaddr;
 #endif
 #if defined(CONFIG_MPC85xx) || defined(CONFIG_MPC86xx)
 	/*
@@ -148,13 +153,6 @@ static int initr_reloc_global_data(void)
 	 * the binary. Some systems need this and for the rest, it doesn't hurt.
 	 */
 	gd->env_addr += gd->reloc_off;
-#endif
-#ifdef CONFIG_OF_EMBED
-	/*
-	 * The fdt_blob needs to be moved to new relocation address
-	 * incase of FDT blob is embedded with in image
-	 */
-	gd->fdt_blob += gd->reloc_off;
 #endif
 #ifdef CONFIG_EFI_LOADER
 	/*
@@ -194,9 +192,9 @@ static int initr_barrier(void)
 
 static int initr_malloc(void)
 {
-	ulong malloc_start;
+	ulong start;
 
-#if CONFIG_VAL(SYS_MALLOC_F_LEN)
+#if CONFIG_IS_ENABLED(SYS_MALLOC_F)
 	debug("Pre-reloc malloc() used %#lx bytes (%ld KB)\n", gd->malloc_ptr,
 	      gd->malloc_ptr / 1024);
 #endif
@@ -205,8 +203,9 @@ static int initr_malloc(void)
 	 * This value MUST match the value of gd->start_addr_sp in board_f.c:
 	 * reserve_noncached().
 	 */
-	malloc_start = gd->relocaddr - TOTAL_MALLOC_LEN;
-	mem_malloc_init((ulong)map_sysmem(malloc_start, TOTAL_MALLOC_LEN),
+	start = gd->relocaddr - TOTAL_MALLOC_LEN;
+	gd_set_malloc_start(start);
+	mem_malloc_init((ulong)map_sysmem(start, TOTAL_MALLOC_LEN),
 			TOTAL_MALLOC_LEN);
 	return 0;
 }
@@ -231,6 +230,8 @@ static int initr_of_live(void)
 static int initr_dm(void)
 {
 	int ret;
+
+	oftree_reset();
 
 	/* Save the pre-reloc driver model and start a new one */
 	gd->dm_root_f = gd->dm_root;
@@ -290,15 +291,6 @@ static int initr_announce(void)
 	return 0;
 }
 
-#ifdef CONFIG_NEEDS_MANUAL_RELOC
-static int initr_manual_reloc_cmdtable(void)
-{
-	fixup_cmdtable(ll_entry_start(struct cmd_tbl, cmd),
-		       ll_entry_count(struct cmd_tbl, cmd));
-	return 0;
-}
-#endif
-
 static int initr_binman(void)
 {
 	int ret;
@@ -339,10 +331,10 @@ static int initr_flash(void)
 	/*
 	 * Compute and print flash CRC if flashchecksum is set to 'y'
 	 *
-	 * NOTE: Maybe we should add some WATCHDOG_RESET()? XXX
+	 * NOTE: Maybe we should add some schedule()? XXX
 	 */
 	if (env_get_yesno("flashchecksum") == 1) {
-		const uchar *flash_base = (const uchar *)CONFIG_SYS_FLASH_BASE;
+		const uchar *flash_base = (const uchar *)CFG_SYS_FLASH_BASE;
 
 		printf("  CRC: %08X", crc32(0,
 					    flash_base,
@@ -352,8 +344,8 @@ static int initr_flash(void)
 	putc('\n');
 
 	/* update start of FLASH memory    */
-#ifdef CONFIG_SYS_FLASH_BASE
-	bd->bi_flashstart = CONFIG_SYS_FLASH_BASE;
+#ifdef CFG_SYS_FLASH_BASE
+	bd->bi_flashstart = CFG_SYS_FLASH_BASE;
 #endif
 	/* size of FLASH memory (final value) */
 	bd->bi_flashsize = flash_size;
@@ -365,8 +357,8 @@ static int initr_flash(void)
 
 #if defined(CONFIG_OXC) || defined(CONFIG_RMU)
 	/* flash mapped at end of memory map */
-	bd->bi_flashoffset = CONFIG_SYS_TEXT_BASE + flash_size;
-#elif CONFIG_SYS_MONITOR_BASE == CONFIG_SYS_FLASH_BASE
+	bd->bi_flashoffset = CONFIG_TEXT_BASE + flash_size;
+#elif CONFIG_SYS_MONITOR_BASE == CFG_SYS_FLASH_BASE
 	bd->bi_flashoffset = monitor_flash_len;	/* reserved area for monitor */
 #endif
 	return 0;
@@ -448,13 +440,18 @@ static int initr_env(void)
 		env_set_hex("fdtcontroladdr",
 			    (unsigned long)map_to_sysmem(gd->fdt_blob));
 
+	#if (IS_ENABLED(CONFIG_SAVE_PREV_BL_INITRAMFS_START_ADDR) || \
+						IS_ENABLED(CONFIG_SAVE_PREV_BL_FDT_ADDR))
+		save_prev_bl_data();
+	#endif
+
 	/* Initialize from environment */
 	image_load_addr = env_get_ulong("loadaddr", 16, image_load_addr);
 
 	return 0;
 }
 
-#ifdef CONFIG_SYS_BOOTPARAMS_LEN
+#ifdef CONFIG_SYS_MALLOC_BOOTPARAMS
 static int initr_malloc_bootparams(void)
 {
 	gd->bd->bi_boot_params = (ulong)malloc(CONFIG_SYS_BOOTPARAMS_LEN);
@@ -466,18 +463,6 @@ static int initr_malloc_bootparams(void)
 }
 #endif
 
-#ifdef CONFIG_CMD_NET
-static int initr_ethaddr(void)
-{
-	struct bd_info *bd = gd->bd;
-
-	/* kept around for legacy kernels only ... ignore the next section */
-	eth_env_get_enetaddr("ethaddr", bd->bi_enetaddr);
-
-	return 0;
-}
-#endif /* CONFIG_CMD_NET */
-
 #if defined(CONFIG_LED_STATUS)
 static int initr_status_led(void)
 {
@@ -486,17 +471,6 @@ static int initr_status_led(void)
 #else
 	status_led_init();
 #endif
-	return 0;
-}
-#endif
-
-#if defined(CONFIG_SCSI) && !defined(CONFIG_DM_SCSI)
-static int initr_scsi(void)
-{
-	puts("SCSI:  ");
-	scsi_init();
-	puts("\n");
-
 	return 0;
 }
 #endif
@@ -522,21 +496,7 @@ static int initr_post(void)
 }
 #endif
 
-#if defined(CONFIG_IDE) && !defined(CONFIG_BLK)
-static int initr_ide(void)
-{
-	puts("IDE:   ");
-#if defined(CONFIG_START_IDE)
-	if (board_start_ide())
-		ide_init();
-#else
-	ide_init();
-#endif
-	return 0;
-}
-#endif
-
-#if defined(CONFIG_PRAM)
+#if defined(CFG_PRAM)
 /*
  * Export available size of memory for Linux, taking into account the
  * protected RAM at top of memory
@@ -546,7 +506,7 @@ int initr_mem(void)
 	ulong pram = 0;
 	char memsz[32];
 
-	pram = env_get_ulong("pram", 10, CONFIG_PRAM);
+	pram = env_get_ulong("pram", 10, CFG_PRAM);
 	sprintf(memsz, "%ldk", (long int)((gd->ram_size / 1024) - pram));
 	env_set("mem", memsz);
 
@@ -572,6 +532,13 @@ static int dm_announce(void)
 			printf("Warning: Unexpected devicetree source (not from a prior stage)");
 			printf("Warning: U-Boot may not function properly\n");
 		}
+		if (IS_ENABLED(CONFIG_OF_TAG_MIGRATE) &&
+		    (gd->flags & GD_FLG_OF_TAG_MIGRATE))
+			/*
+			 * U-Boot will silently fail to work after 2023.07 if
+			 * there are old tags present
+			 */
+			printf("Warning: Device tree includes old 'u-boot,dm-' tags: please fix by 2023.07!\n");
 	}
 
 	return 0;
@@ -622,6 +589,9 @@ static int run_main_loop(void)
 #ifdef CONFIG_SANDBOX
 	sandbox_main_loop_init();
 #endif
+
+	event_notify_null(EVT_MAIN_LOOP);
+
 	/* main_loop() can return to retry autoboot, if so just run it again */
 	for (;;)
 		main_loop();
@@ -629,7 +599,10 @@ static int run_main_loop(void)
 }
 
 /*
- * We hope to remove most of the driver-related init and do it if/when
+ * Over time we hope to remove these functions with code fragments and
+ * stub functions, and instead call the relevant function directly.
+ *
+ * We also hope to remove most of the driver-related init and do it if/when
  * the driver is later used.
  *
  * TODO: perhaps reset the watchdog in the initcall function after each call?
@@ -637,6 +610,7 @@ static int run_main_loop(void)
 static init_fnc_t init_sequence_r[] = {
 	initr_trace,
 	initr_reloc,
+	event_init,
 	/* TODO: could x86/PPC have this also perhaps? */
 #if defined(CONFIG_ARM) || defined(CONFIG_RISCV)
 	initr_caches,
@@ -668,8 +642,7 @@ static init_fnc_t init_sequence_r[] = {
 #ifdef CONFIG_ADDR_MAP
 	init_addr_map,
 #endif
-#if defined(CONFIG_ARM) || defined(CONFIG_NDS32) || defined(CONFIG_RISCV) || \
-	defined(CONFIG_SANDBOX)
+#if defined(CONFIG_ARM) || defined(CONFIG_RISCV) || defined(CONFIG_SANDBOX)
 	board_init,	/* Setup chipselects */
 #endif
 	/*
@@ -697,12 +670,6 @@ static init_fnc_t init_sequence_r[] = {
 	initr_watchdog,
 #endif
 	INIT_FUNC_WATCHDOG_RESET
-#if defined(CONFIG_NEEDS_MANUAL_RELOC) && defined(CONFIG_BLOCK_CACHE)
-	blkcache_init,
-#endif
-#ifdef CONFIG_NEEDS_MANUAL_RELOC
-	initr_manual_reloc_cmdtable,
-#endif
 	arch_initr_trap,
 #if defined(CONFIG_BOARD_EARLY_INIT_R)
 	board_early_init_r,
@@ -731,6 +698,9 @@ static init_fnc_t init_sequence_r[] = {
 	/* initialize higher level parts of CPU like time base and timers */
 	cpu_init_r,
 #endif
+#ifdef CONFIG_EFI_LOADER
+	efi_init_early,
+#endif
 #ifdef CONFIG_CMD_NAND
 	initr_nand,
 #endif
@@ -747,7 +717,7 @@ static init_fnc_t init_sequence_r[] = {
 	initr_pvblock,
 #endif
 	initr_env,
-#ifdef CONFIG_SYS_BOOTPARAMS_LEN
+#ifdef CONFIG_SYS_MALLOC_BOOTPARAMS
 	initr_malloc_bootparams,
 #endif
 	INIT_FUNC_WATCHDOG_RESET
@@ -755,6 +725,7 @@ static init_fnc_t init_sequence_r[] = {
 #if defined(CONFIG_ID_EEPROM)
 	mac_read_from_eeprom,
 #endif
+	INITCALL_EVENT(EVT_SETTINGS_R),
 	INIT_FUNC_WATCHDOG_RESET
 #if defined(CONFIG_PCI_INIT_R) && !defined(CONFIG_SYS_EARLY_PCI_INIT)
 	/*
@@ -790,21 +761,11 @@ static init_fnc_t init_sequence_r[] = {
 	initr_status_led,
 #endif
 	/* PPC has a udelay(20) here dating from 2002. Why? */
-#ifdef CONFIG_CMD_NET
-	initr_ethaddr,
-#endif
-#if defined(CONFIG_GPIO_HOG)
-	gpio_hog_probe_all,
-#endif
 #ifdef CONFIG_BOARD_LATE_INIT
 	board_late_init,
 #endif
 #ifdef CONFIG_FSL_FASTBOOT
 	initr_fastboot_setup,
-#endif
-#if defined(CONFIG_SCSI) && !defined(CONFIG_DM_SCSI)
-	INIT_FUNC_WATCHDOG_RESET
-	initr_scsi,
 #endif
 #ifdef CONFIG_BITBANGMII
 	bb_miiphy_init,
@@ -819,23 +780,10 @@ static init_fnc_t init_sequence_r[] = {
 #ifdef CONFIG_POST
 	initr_post,
 #endif
-#if defined(CONFIG_IDE) && !defined(CONFIG_BLK)
-	initr_ide,
-#endif
-#ifdef CONFIG_LAST_STAGE_INIT
 	INIT_FUNC_WATCHDOG_RESET
-	/*
-	 * Some parts can be only initialized if all others (like
-	 * Interrupts) are up and running (i.e. the PC-style ISA
-	 * keyboard).
-	 */
-	last_stage_init,
-#endif
-#if defined(CONFIG_PRAM)
+	INITCALL_EVENT(EVT_LAST_STAGE_INIT),
+#if defined(CFG_PRAM)
 	initr_mem,
-#endif
-#ifdef CONFIG_EFI_SETUP_EARLY
-	(init_fnc_t)efi_init_obj_list,
 #endif
 #if defined(AVB_RPMB) && !defined(CONFIG_SPL)
 	initr_avbkey,
@@ -855,6 +803,15 @@ static init_fnc_t init_sequence_r[] = {
 void board_init_r(gd_t *new_gd, ulong dest_addr)
 {
 	/*
+	 * The pre-relocation drivers may be using memory that has now gone
+	 * away. Mark serial as unavailable - this will fall back to the debug
+	 * UART if available.
+	 *
+	 * Do the same with log drivers since the memory may not be available.
+	 */
+	gd->flags &= ~(GD_FLG_SERIAL_READY | GD_FLG_LOG_READY);
+
+	/*
 	 * Set up the new global data pointer. So far only x86 does this
 	 * here.
 	 * TODO(sjg@chromium.org): Consider doing this for all archs, or
@@ -863,19 +820,10 @@ void board_init_r(gd_t *new_gd, ulong dest_addr)
 	if (CONFIG_IS_ENABLED(X86_64) && !IS_ENABLED(CONFIG_EFI_APP))
 		arch_setup_gd(new_gd);
 
-#ifdef CONFIG_NEEDS_MANUAL_RELOC
-	int i;
-#endif
-
 #if !defined(CONFIG_X86) && !defined(CONFIG_ARM) && !defined(CONFIG_ARM64)
 	gd = new_gd;
 #endif
 	gd->flags &= ~GD_FLG_LOG_READY;
-
-#ifdef CONFIG_NEEDS_MANUAL_RELOC
-	for (i = 0; i < ARRAY_SIZE(init_sequence_r); i++)
-		init_sequence_r[i] += gd->reloc_off;
-#endif
 
 	if (initcall_run_list(init_sequence_r))
 		hang();

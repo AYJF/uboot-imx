@@ -25,6 +25,7 @@
 #if IS_ENABLED(CONFIG_DM)
 #include <dm/device.h>
 #endif
+#include <dm/ofnode.h>
 
 #define MAX_MTD_DEVICES 32
 #endif
@@ -121,7 +122,7 @@ struct mtd_oob_region {
  * @ecc: function returning an ECC region in the OOB area.
  *	 Should return -ERANGE if %section exceeds the total number of
  *	 ECC sections.
- * @free: function returning a free region in the OOB area.
+ * @rfree: function returning a free region in the OOB area.
  *	  Should return -ERANGE if %section exceeds the total number of
  *	  free sections.
  */
@@ -305,6 +306,7 @@ struct mtd_info {
 	struct device dev;
 #else
 	struct udevice *dev;
+	ofnode flash_node;
 #endif
 	int usecount;
 
@@ -550,8 +552,20 @@ unsigned mtd_mmap_capabilities(struct mtd_info *mtd);
 
 #ifdef __UBOOT__
 /* drivers/mtd/mtdcore.h */
+#if CONFIG_IS_ENABLED(MTD)
 int add_mtd_device(struct mtd_info *mtd);
 int del_mtd_device(struct mtd_info *mtd);
+#else
+static inline int add_mtd_device(struct mtd_info *mtd)
+{
+	return -ENOSYS;
+}
+
+static inline int del_mtd_device(struct mtd_info *mtd)
+{
+	return -ENOSYS;
+}
+#endif
 
 #ifdef CONFIG_MTD_PARTITIONS
 int add_mtd_partitions(struct mtd_info *, const struct mtd_partition *, int);

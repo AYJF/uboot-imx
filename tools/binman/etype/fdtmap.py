@@ -9,11 +9,16 @@ image.
 """
 
 from binman.entry import Entry
-from patman import tools
-from patman import tout
+from u_boot_pylib import tools
+from u_boot_pylib import tout
 
 FDTMAP_MAGIC   = b'_FDTMAP_'
 FDTMAP_HDR_LEN = 16
+
+# These is imported if needed
+Fdt = None
+libfdt = None
+state = None
 
 def LocateFdtmap(data):
     """Search an image for an fdt map

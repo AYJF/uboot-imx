@@ -82,7 +82,9 @@
 #define HCR_EL2_RW_AARCH64	(1 << 31) /* EL1 is AArch64                   */
 #define HCR_EL2_RW_AARCH32	(0 << 31) /* Lower levels are AArch32         */
 #define HCR_EL2_HCD_DIS		(1 << 29) /* Hypervisor Call disabled         */
+#define HCR_EL2_AMO_EL2		(1 <<  5) /* Route SErrors to EL2             */
 
+#define ID_AA64ISAR0_EL1_RNDR	(0xFUL << 60) /* RNDR random registers */
 /*
  * ID_AA64ISAR1_EL1 bits definitions
  */
@@ -515,14 +517,6 @@ enum dcache_option {
 };
 #endif
 
-#if defined(CONFIG_SYS_ARM_CACHE_WRITETHROUGH)
-#define DCACHE_DEFAULT_OPTION	DCACHE_WRITETHROUGH
-#elif defined(CONFIG_SYS_ARM_CACHE_WRITEALLOC)
-#define DCACHE_DEFAULT_OPTION	DCACHE_WRITEALLOC
-#elif defined(CONFIG_SYS_ARM_CACHE_WRITEBACK)
-#define DCACHE_DEFAULT_OPTION	DCACHE_WRITEBACK
-#endif
-
 /* Size of an MMU section */
 enum {
 #ifdef CONFIG_ARMV7_LPAE
@@ -579,6 +573,14 @@ void psci_system_reset(void);
 #endif /* __KERNEL__ */
 
 #endif /* CONFIG_ARM64 */
+
+#if defined(CONFIG_SYS_ARM_CACHE_WRITETHROUGH)
+#define DCACHE_DEFAULT_OPTION	DCACHE_WRITETHROUGH
+#elif defined(CONFIG_SYS_ARM_CACHE_WRITEALLOC)
+#define DCACHE_DEFAULT_OPTION	DCACHE_WRITEALLOC
+#elif defined(CONFIG_SYS_ARM_CACHE_WRITEBACK)
+#define DCACHE_DEFAULT_OPTION	DCACHE_WRITEBACK
+#endif
 
 #ifndef __ASSEMBLY__
 /**

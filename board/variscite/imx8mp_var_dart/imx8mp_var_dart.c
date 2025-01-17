@@ -1,12 +1,12 @@
-// SPDX-License-Identifier: GPL-2.0+
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Copyright 2019 NXP
- * Copyright 2020-2022 Variscite Ltd.
+ * Copyright 2020-2024 Variscite Ltd.
  */
-#define DEBUG
-#include <common.h>
+
 #include <efi_loader.h>
 #include <errno.h>
+#include <fdtdec.h>
 #include <miiphy.h>
 #include <netdev.h>
 #include <asm/io.h>
@@ -30,36 +30,25 @@
 #include "../common/imx8_eeprom.h"
 #include "imx8mp_var_dart.h"
 
-extern int var_setup_mac(struct var_eeprom *ep);
+int var_setup_mac(struct var_eeprom *eeprom);
 
 DECLARE_GLOBAL_DATA_PTR;
 
-#define UART_PAD_CTRL	(PAD_CTL_DSE6 | PAD_CTL_FSEL1)
 #define WDOG_PAD_CTRL	(PAD_CTL_DSE6 | PAD_CTL_ODE | PAD_CTL_PUE | PAD_CTL_PE)
 #define GPIO_PAD_CTRL	(PAD_CTL_DSE1 | PAD_CTL_PUE | PAD_CTL_PE  | PAD_CTL_HYS)
-
-static iomux_v3_cfg_t const uart_pads_dart[] = {
-	MX8MP_PAD_UART1_RXD__UART1_DCE_RX | MUX_PAD_CTRL(UART_PAD_CTRL),
-	MX8MP_PAD_UART1_TXD__UART1_DCE_TX | MUX_PAD_CTRL(UART_PAD_CTRL),
-};
-
-static iomux_v3_cfg_t const uart_pads_som[] = {
-	MX8MP_PAD_UART2_RXD__UART2_DCE_RX | MUX_PAD_CTRL(UART_PAD_CTRL),
-	MX8MP_PAD_UART2_TXD__UART2_DCE_TX | MUX_PAD_CTRL(UART_PAD_CTRL),
-};
 
 static iomux_v3_cfg_t const wdog_pads[] = {
 	MX8MP_PAD_GPIO1_IO02__WDOG1_WDOG_B  | MUX_PAD_CTRL(WDOG_PAD_CTRL),
 };
 
-extern struct mxc_uart *mxc_base;
-
 #ifdef CONFIG_SPL_BUILD
 
 #define BOARD_DETECT_GPIO IMX_GPIO_NR(2, 11)
+#define SOM_WIFI_EN_GPIO IMX_GPIO_NR(2, 19)
 
 static iomux_v3_cfg_t const board_detect_pads[] = {
 	MX8MP_PAD_SD1_STROBE__GPIO2_IO11 | MUX_PAD_CTRL(GPIO_PAD_CTRL),
+	MX8MP_PAD_SD2_RESET_B__GPIO2_IO19 | MUX_PAD_CTRL(GPIO_PAD_CTRL),
 };
 #endif
 
@@ -73,10 +62,24 @@ int var_detect_board_id(void)
 #ifdef CONFIG_SPL_BUILD
 	imx_iomux_v3_setup_multiple_pads(board_detect_pads,
 				ARRAY_SIZE(board_detect_pads));
+	/*
+	 * For VAR-SOM-MX8M-PLUS 2.x, the IW612 will pull BOARD_DETECT_GPIO
+	 * low when the module is powered down (PDn is asserted low).
+	 * To avoid this, assert PDn high so BOARD_DETECT_GPIO can be read.
+	 */
+	gpio_request(SOM_WIFI_EN_GPIO, "wifi_en");
+	gpio_direction_output(SOM_WIFI_EN_GPIO, 1);
+	udelay(10);
+
 	gpio_request(BOARD_DETECT_GPIO, "board_detect");
 	gpio_direction_input(BOARD_DETECT_GPIO);
 	board_id = gpio_get_value(BOARD_DETECT_GPIO) ? BOARD_ID_SOM : BOARD_ID_DART;
-	gpio_free(BOARD_DETECT_GPIO);	
+
+	if (board_id == BOARD_ID_SOM)
+		gpio_set_value(SOM_WIFI_EN_GPIO, 0);
+
+	gpio_free(BOARD_DETECT_GPIO);
+	gpio_free(SOM_WIFI_EN_GPIO);
 #else
 	if (of_machine_is_compatible("variscite,imx8mp-var-som"))
 		board_id = BOARD_ID_SOM;
@@ -86,6 +89,58 @@ int var_detect_board_id(void)
 
 	return board_id;
 }
+
+#ifdef CONFIG_POWER_PCA9450
+#define PCA9450_I2C_BUS	0
+#define PCA9450_I2C_ADDR	0x25
+#define PCA9450_LSW_CTRL_ADDR	0x2A
+#define REG_DATA_SIZE		1
+
+int setup_sw_en_pmic(void)
+{
+	struct udevice *bus;
+	struct udevice *dev;
+	u8 reg_data[REG_DATA_SIZE];
+	int ret;
+
+	struct var_eeprom *ep = VAR_EEPROM_DATA;
+	int som_rev = SOMREV_MAJOR(ep->somrev);
+
+	/* On DART-MX8M-PLUS v2.0, SW_EN must be set by software to ensure
+	 * that the ethernet PHY is powered up. Set bit 0 of LOADSW_CTRL.
+	 */
+	if (som_rev >= 2) {
+		ret = uclass_get_device_by_seq(UCLASS_I2C, PCA9450_I2C_BUS, &bus);
+		if (ret) {
+			printf("Can't find I2C bus %d\n", PCA9450_I2C_BUS);
+			return ret;
+		}
+
+		ret = dm_i2c_probe(bus, PCA9450_I2C_ADDR, 0, &dev);
+		if (ret) {
+			printf("Can't find device at address 0x%x\n", PCA9450_I2C_ADDR);
+			return ret;
+		}
+
+		ret = dm_i2c_read(dev, PCA9450_LSW_CTRL_ADDR, reg_data, REG_DATA_SIZE);
+		if (ret) {
+			printf("Failed to read address 0x%x\n", PCA9450_I2C_ADDR);
+			return ret;
+		}
+
+		/* Enable SW_EN by setting LOADSW_CTRL bit 0 */
+		reg_data[0] |= 0x01;
+
+		ret = dm_i2c_write(dev, PCA9450_LSW_CTRL_ADDR, reg_data, REG_DATA_SIZE);
+		if (ret) {
+			printf("Failed to write at address 0x%x\n", PCA9450_I2C_ADDR);
+			return ret;
+		}
+	}
+
+	return 0;
+}
+#endif
 
 #if CONFIG_IS_ENABLED(EFI_HAVE_CAPSULE_SUPPORT)
 struct efi_fw_image fw_images[] = {
@@ -98,33 +153,19 @@ struct efi_fw_image fw_images[] = {
 
 struct efi_capsule_update_info update_info = {
 	.dfu_string = "mmc 2=1 raw 0x40 0x1000",
+	.num_images = ARRAY_SIZE(fw_images),
 	.images = fw_images,
 };
 
-u8 num_image_type_guids = ARRAY_SIZE(fw_images);
 #endif /* EFI_HAVE_CAPSULE_SUPPORT */
 
 int board_early_init_f(void)
-{	
-	int board_id;
+{
 	struct wdog_regs *wdog = (struct wdog_regs *)WDOG1_BASE_ADDR;
 
 	imx_iomux_v3_setup_multiple_pads(wdog_pads, ARRAY_SIZE(wdog_pads));
 
 	set_wdog_reset(wdog);
-
-	board_id = var_detect_board_id();
-	if (board_id == BOARD_ID_DART) {
-		imx_iomux_v3_setup_multiple_pads(uart_pads_dart,
-			ARRAY_SIZE(uart_pads_dart));
-		init_uart_clk(0);
-	}
-	else if (board_id == BOARD_ID_SOM) {
-		imx_iomux_v3_setup_multiple_pads(uart_pads_som,
-			ARRAY_SIZE(uart_pads_som));
-		init_uart_clk(1);
-		mxc_base = (struct mxc_uart *)UART2_BASE_ADDR;
-	}
 
 	return 0;
 }
@@ -162,32 +203,6 @@ int ft_board_setup(void *blob, struct bd_info *bd)
 }
 #endif
 
-#ifdef CONFIG_FEC_MXC
-static void setup_fec(void)
-{
-	struct iomuxc_gpr_base_regs *gpr =
-		(struct iomuxc_gpr_base_regs *)IOMUXC_GPR_BASE_ADDR;
-
-	/* Enable RGMII TX clk output */
-	setbits_le32(&gpr->gpr[1], BIT(22));
-}
-#endif
-
-#ifdef CONFIG_DWC_ETH_QOS
-static int setup_eqos(void)
-{
-	struct iomuxc_gpr_base_regs *gpr =
-		(struct iomuxc_gpr_base_regs *)IOMUXC_GPR_BASE_ADDR;
-
-	/* set INTF as RGMII, enable RGMII TXC clock */
-	clrsetbits_le32(&gpr->gpr[1],
-			IOMUXC_GPR_GPR1_GPR_ENET_QOS_INTF_SEL_MASK, BIT(16));
-	setbits_le32(&gpr->gpr[1], BIT(19) | BIT(21));
-
-	return set_clk_eqos(ENET_125MHZ);
-}
-#endif
-
 #ifdef CONFIG_USB_DWC3
 
 #define USB_PHY_CTRL0			0xF0040
@@ -210,7 +225,6 @@ static int setup_eqos(void)
 #define HSIO_GPR_REG_0_USB_CLOCK_MODULE_EN_SHIFT	(1)
 #define HSIO_GPR_REG_0_USB_CLOCK_MODULE_EN		(0x1U << HSIO_GPR_REG_0_USB_CLOCK_MODULE_EN_SHIFT)
 
-
 static struct dwc3_device dwc3_device_data = {
 #ifdef CONFIG_SPL_BUILD
 	.maximum_speed = USB_SPEED_HIGH,
@@ -223,9 +237,9 @@ static struct dwc3_device dwc3_device_data = {
 	.power_down_scale = 2,
 };
 
-int usb_gadget_handle_interrupts(void)
+int dm_usb_gadget_handle_interrupts(struct udevice *dev)
 {
-	dwc3_uboot_handle_interrupt(0);
+	dwc3_uboot_handle_interrupt(dev);
 	return 0;
 }
 
@@ -240,11 +254,11 @@ static void dwc3_nxp_usb_phy_init(struct dwc3_device *dwc3)
 
 	/* USB3.0 PHY signal fsel for 100M ref */
 	RegData = readl(dwc3->base + USB_PHY_CTRL0);
-	RegData = (RegData & 0xfffff81f) | (0x2a<<5);
+	RegData = (RegData & 0xfffff81f) | (0x2a << 5);
 	writel(RegData, dwc3->base + USB_PHY_CTRL0);
 
 	RegData = readl(dwc3->base + USB_PHY_CTRL6);
-	RegData &=~0x1;
+	RegData &= ~0x1;
 	writel(RegData, dwc3->base + USB_PHY_CTRL6);
 
 	RegData = readl(dwc3->base + USB_PHY_CTRL1);
@@ -276,6 +290,7 @@ static struct extcon_ptn5150 usb_ptn5150;
 int board_usb_init(int index, enum usb_init_type init)
 {
 	int ret = 0;
+
 	imx8m_usb_power(index, true);
 
 #if (!defined(CONFIG_SPL_BUILD) && defined(CONFIG_EXTCON_PTN5150))
@@ -310,6 +325,7 @@ int board_usb_init(int index, enum usb_init_type init)
 int board_usb_cleanup(int index, enum usb_init_type init)
 {
 	int ret = 0;
+
 	if (index == 0 && init == USB_INIT_DEVICE) {
 		dwc3_uboot_exit(index);
 	} else if (index == 0 && init == USB_INIT_HOST) {
@@ -337,19 +353,60 @@ int board_ehci_usb_phy_mode(struct udevice *dev)
 #endif
 #endif
 
+#ifdef CONFIG_OF_BOARD_FIXUP
+int vendor_board_fix_fdt(void *fdt_blob)
+{
+	struct var_eeprom *ep = VAR_EEPROM_DATA;
+	int som_rev = SOMREV_MAJOR(ep->somrev);
+
+	if (!fdt_blob) {
+		printf("ERROR: Device tree blob not found.\n");
+		return -EINVAL;
+	}
+
+	if ((var_detect_board_id() == BOARD_ID_DART) && (som_rev >= 2)) {
+		int node_offset, subnode_offset, ret;
+		const char *node_path = "/soc@0/bus@30000000/gpio@30210000";
+		const char *node_name = "eth0_phy_pwr_hog";
+
+		node_offset = fdt_path_offset(fdt_blob, node_path);
+		if (node_offset < 0) {
+			printf("WARNING: couldn't find %s: %s\n", node_path,
+			       fdt_strerror(node_offset));
+			return -ENOENT;
+		}
+
+		subnode_offset = fdt_subnode_offset(fdt_blob, node_offset, node_name);
+		if (subnode_offset < 0) {
+			printf("WARNING: couldn't find %s node: %s\n",
+			       node_name, fdt_strerror(subnode_offset));
+			return -ENOENT;
+		}
+
+		ret = fdt_del_node(fdt_blob, subnode_offset);
+		if (ret < 0) {
+			printf("WARNING: Couldn't delete subnode %s: %s\n",
+			       node_name, fdt_strerror(ret));
+			return ret;
+		}
+	}
+
+	return 0;
+}
+#endif
+
 int board_init(void)
 {
-	if (CONFIG_IS_ENABLED(EXTCON_PTN5150)) {
+#ifdef CONFIG_EXTCON_PTN5150
 		extcon_ptn5150_setup(&usb_ptn5150);
-	}
+#endif
+#ifdef CONFIG_POWER_PCA9450
+	int ret;
 
-	if (CONFIG_IS_ENABLED(FEC_MXC)) {
-		setup_fec();
-	}
-
-	if (CONFIG_IS_ENABLED(DWC_ETH_QOS)) {
-		setup_eqos();
-	}
+	ret = setup_sw_en_pmic();
+	if (ret)
+		return ret;
+#endif
 
 #if defined(CONFIG_USB_DWC3) || defined(CONFIG_USB_XHCI_IMX8M)
 	init_usb_clk();
@@ -367,6 +424,7 @@ int board_late_init(void)
 	struct var_eeprom *ep = VAR_EEPROM_DATA;
 	struct var_carrier_eeprom carrier_eeprom;
 	char carrier_rev[CARRIER_REV_LEN] = {0};
+	char som_rev[CARRIER_REV_LEN] = {0};
 
 #ifdef CONFIG_ENV_IS_IN_MMC
 	board_late_mmc_env_init();
@@ -377,24 +435,34 @@ int board_late_init(void)
 #endif
 
 	snprintf(sdram_size_str, SDRAM_SIZE_STR_LEN, "%d",
-			(int) (gd->ram_size / 1024 / 1024));
+			(int)(gd->ram_size / 1024 / 1024));
 	env_set("sdram_size", sdram_size_str);
 
 	board_id = var_detect_board_id();
-	if (board_id == BOARD_ID_SOM) {
-		env_set("board_name", "VAR-SOM-MX8M-PLUS");
-		env_set("console", "ttymxc1,115200");
+	if (board_id != BOARD_ID_UNDEF) {
+		if (board_id == BOARD_ID_SOM) {
+			env_set("board_name", "VAR-SOM-MX8M-PLUS");
+			env_set("console", "ttymxc1,115200");
 
-		var_carrier_eeprom_read(CARRIER_EEPROM_BUS_SOM, CARRIER_EEPROM_ADDR, &carrier_eeprom);
+			var_carrier_eeprom_read(CARRIER_EEPROM_BUS_SOM, CARRIER_EEPROM_ADDR,
+						&carrier_eeprom);
+		} else if (board_id == BOARD_ID_DART) {
+			env_set("board_name", "DART-MX8M-PLUS");
+
+			var_carrier_eeprom_read(CARRIER_EEPROM_BUS_DART, CARRIER_EEPROM_ADDR,
+						&carrier_eeprom);
+		}
+
 		var_carrier_eeprom_get_revision(&carrier_eeprom, carrier_rev, sizeof(carrier_rev));
 		env_set("carrier_rev", carrier_rev);
-	}
-	else if (board_id == BOARD_ID_DART) {
-		env_set("board_name", "DART-MX8M-PLUS");
 
-		var_carrier_eeprom_read(CARRIER_EEPROM_BUS_DART, CARRIER_EEPROM_ADDR, &carrier_eeprom);
-		var_carrier_eeprom_get_revision(&carrier_eeprom, carrier_rev, sizeof(carrier_rev));
-		env_set("carrier_rev", carrier_rev);
+		/* SoM Features ENV */
+		env_set("som_has_wbe", (ep->features & VAR_EEPROM_F_WBE) ? "1" : "0");
+
+		/* SoM Rev ENV*/
+		snprintf(som_rev, CARRIER_REV_LEN, "%ld.%ld", SOMREV_MAJOR(ep->somrev),
+			 SOMREV_MINOR(ep->somrev));
+		env_set("som_rev", som_rev);
 	}
 
 	var_setup_mac(ep);
@@ -413,7 +481,8 @@ int is_recovery_key_pressing(void)
 #endif /*CONFIG_FSL_FASTBOOT*/
 
 #ifdef CONFIG_ANDROID_SUPPORT
-bool is_power_key_pressed(void) {
+bool is_power_key_pressed(void)
+{
 	return (bool)(!!(readl(SNVS_HPSR) & (0x1 << 6)));
 }
 #endif
@@ -421,14 +490,15 @@ bool is_power_key_pressed(void) {
 #ifdef CONFIG_SPL_MMC
 
 #define UBOOT_RAW_SECTOR_OFFSET 0x40
-unsigned long spl_mmc_get_uboot_raw_sector(struct mmc *mmc)
+unsigned long spl_mmc_get_uboot_raw_sector(struct mmc *mmc, unsigned long raw_sect)
 {
 	u32 boot_dev = spl_boot_device();
+
 	switch (boot_dev) {
-		case BOOT_DEVICE_MMC2:
-			return CONFIG_SYS_MMCSD_RAW_MODE_U_BOOT_SECTOR - UBOOT_RAW_SECTOR_OFFSET;
-		default:
-			return CONFIG_SYS_MMCSD_RAW_MODE_U_BOOT_SECTOR;
+	case BOOT_DEVICE_MMC2:
+		return CONFIG_SYS_MMCSD_RAW_MODE_U_BOOT_SECTOR - UBOOT_RAW_SECTOR_OFFSET;
+	default:
+		return CONFIG_SYS_MMCSD_RAW_MODE_U_BOOT_SECTOR;
 	}
 }
 #endif

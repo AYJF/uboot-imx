@@ -438,6 +438,9 @@ static bool atmel_qspi_supports_op(struct spi_slave *slave,
 {
 	struct atmel_qspi *aq = dev_get_priv(slave->dev->parent);
 
+	if (!spi_mem_default_supports_op(slave, op))
+		return false;
+
 	if (aq->caps->octal) {
 		if (atmel_qspi_sama7g5_find_mode(op) < 0)
 			return false;
@@ -874,7 +877,6 @@ static int atmel_qspi_set_gclk(struct udevice *bus, uint hz)
 	ret = clk_enable(&gclk);
 	if (ret)
 		dev_err(bus, "Failed to enable QSPI generic clock\n");
-	clk_free(&gclk);
 
 	return ret;
 }
@@ -997,7 +999,7 @@ static int atmel_qspi_enable_clk(struct udevice *dev)
 	ret = clk_enable(&pclk);
 	if (ret) {
 		dev_err(dev, "Failed to enable QSPI peripheral clock\n");
-		goto free_pclk;
+		return ret;
 	}
 
 	if (aq->caps->has_qspick) {
@@ -1005,32 +1007,27 @@ static int atmel_qspi_enable_clk(struct udevice *dev)
 		ret = clk_get_by_name(dev, "qspick", &qspick);
 		if (ret) {
 			dev_err(dev, "Missing QSPI peripheral clock\n");
-			goto free_pclk;
+			return ret;
 		}
 
 		ret = clk_enable(&qspick);
 		if (ret)
 			dev_err(dev, "Failed to enable QSPI system clock\n");
-		clk_free(&qspick);
 	} else if (aq->caps->has_gclk) {
 		ret = clk_get_by_name(dev, "gclk", &gclk);
 		if (ret) {
 			dev_err(dev, "Missing QSPI generic clock\n");
-			goto free_pclk;
+			return ret;
 		}
 
 		ret = clk_enable(&gclk);
 		if (ret)
 			dev_err(dev, "Failed to enable QSPI system clock\n");
-		clk_free(&gclk);
 	}
 
 	aq->bus_clk_rate = clk_get_rate(&pclk);
 	if (!aq->bus_clk_rate)
-		ret = -EINVAL;
-
-free_pclk:
-	clk_free(&pclk);
+		return -EINVAL;
 
 	return ret;
 }

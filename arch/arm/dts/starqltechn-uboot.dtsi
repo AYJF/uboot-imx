@@ -8,32 +8,20 @@
 
 /
 {
+	framebuffer@9D400000 {
+		bootph-all;
+	};
 	soc {
-		u-boot,dm-pre-reloc;
-		gcc {
-			clock-controller@100000 {
-				u-boot,dm-pre-reloc;
-			};
-			serial@0xa84000 {
-				u-boot,dm-pre-reloc;
-			};
-			gpio_north@3900000 {
-				u-boot,dm-pre-reloc;
-			};
-			pinctrl@3900000 {
-				u-boot,dm-pre-reloc;
-			};
+		bootph-all;
+		serial@a84000 {
+			bootph-all;
+		};
+		clock-controller@100000 {
+			bootph-all;
+		};
+		pinctrl@3400000 {
+			bootph-all;
 		};
 	};
 };
 
-&pm8998_pon {
-	key_vol_down {
-		gpios = <&pm8998_pon 1 0>;
-		label = "key_vol_down";
-	};
-	key_power {
-		gpios = <&pm8998_pon 0 0>;
-		label = "key_power";
-	};
-};

@@ -1,16 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * Copyright 2018 NXP
- * Copyright 2018-2020 Variscite Ltd.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * Copyright 2018-2024 Variscite Ltd.
  */
 
 /dts-v1/;
@@ -67,7 +58,6 @@
 		>;
 	};
 
-
 	pinctrl_reg_usdhc2_vmmc: regulator-usdhc2 {
 		fsl,pins = <
 			MX8MM_IOMUXC_SD2_RESET_B_GPIO2_IO19		0x41
@@ -116,6 +106,12 @@
 			MX8MM_IOMUXC_GPIO1_IO04_USDHC2_VSELECT	0x1d0
 		>;
 	};
+
+	pinctrl_extcon: extcongrp {
+		fsl,pins = <
+			MX8MM_IOMUXC_GPIO1_IO10_GPIO1_IO10		0x19
+		>;
+	};
 };
 
 &i2c2 {
@@ -127,12 +123,21 @@
 	sda-gpios = <&gpio5 17 GPIO_ACTIVE_HIGH>;
 	status = "okay";
 
-	ptn5150: ptn5150@3d {
+	extcon_ptn5150: typec@3d {
 		compatible = "nxp,ptn5150";
 		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_extcon>;
 		reg = <0x3d>;
-		i2c-bus = <0x1>;
+		interrupt-parent = <&gpio1>;
+		interrupts = <10 IRQ_TYPE_NONE>;
+		irq-is-id-quirk;
 		status = "okay";
+
+		port {
+			typec1_dr_sw: endpoint {
+				remote-endpoint = <&usb1_drd_sw>;
+			};
+		};
 	};
 };
 
@@ -169,8 +174,20 @@
 
 &usbotg1 {
 	dr_mode = "otg";
-	extcon = <&ptn5150>;
+	hnp-disable;
+	srp-disable;
+	adp-disable;
+	usb-role-switch;
+	disable-over-current;
+	samsung,picophy-pre-emp-curr-control = <3>;
+	samsung,picophy-dc-vol-level-adjust = <7>;
 	status = "okay";
+
+	port {
+		usb1_drd_sw: endpoint {
+			remote-endpoint = <&typec1_dr_sw>;
+		};
+	};
 };
 
 &usbotg2 {

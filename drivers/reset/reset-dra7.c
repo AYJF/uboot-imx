@@ -2,7 +2,7 @@
 /*
  * Texas Instruments DRA7 reset driver
  *
- * Copyright (C) 2019 Texas Instruments Incorporated - http://www.ti.com/
+ * Copyright (C) 2019 Texas Instruments Incorporated - https://www.ti.com/
  * Author: Keerthy <j-keerthy@ti.com>
  */
 
@@ -17,16 +17,6 @@ struct dra7_reset_priv {
 	u32 rstst;
 	u8 nreset;
 };
-
-static int dra7_reset_request(struct reset_ctl *reset_ctl)
-{
-	return 0;
-}
-
-static int dra7_reset_free(struct reset_ctl *reset_ctl)
-{
-	return 0;
-}
 
 static inline void dra7_reset_rmw(u32 addr, u32 value, u32 mask)
 {
@@ -63,8 +53,6 @@ static int dra7_reset_assert(struct reset_ctl *reset_ctl)
 }
 
 struct reset_ops dra7_reset_ops = {
-	.request = dra7_reset_request,
-	.rfree = dra7_reset_free,
 	.rst_assert = dra7_reset_assert,
 	.rst_deassert = dra7_reset_deassert,
 };

@@ -1,3 +1,9 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later
+ *
+ * Copyright 2020-2024 Variscite Ltd.
+ *
+ */
+
 #ifndef __IMX8MP_VAR_DART_H__
 #define __IMX8MP_VAR_DART_H__
 

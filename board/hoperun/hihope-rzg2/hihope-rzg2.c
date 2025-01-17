@@ -10,7 +10,7 @@
 #include <asm/global_data.h>
 #include <asm/io.h>
 #include <asm/processor.h>
-#include <asm/arch/rmobile.h>
+#include <asm/arch/renesas.h>
 #include <asm/arch/rcar-mstp.h>
 #include <linux/bitops.h>
 #include <linux/delay.h>
@@ -39,7 +39,7 @@ int board_init(void)
 	u32 i;
 
 	/* address of boot parameters */
-	gd->bd->bi_boot_params = CONFIG_SYS_TEXT_BASE + 0x50000;
+	gd->bd->bi_boot_params = CONFIG_TEXT_BASE + 0x50000;
 
 	/* Configure the HSUSB block */
 	mstp_clrbits_le32(SMSTPCR7, SMSTPCR7, HSUSB_MSTP704);

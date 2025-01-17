@@ -20,9 +20,20 @@
 #include <asm/mach-imx/boot_mode.h>
 #include <g_dnl.h>
 #include <linux/libfdt.h>
+#include <u-boot/lz4.h>
+#include <image.h>
+#include <asm/sections.h>
+#include <asm/setup.h>
+#include <asm/bootm.h>
 #include <mmc.h>
+#include <u-boot/lz4.h>
+#include <image.h>
 
 DECLARE_GLOBAL_DATA_PTR;
+
+#ifndef CFG_FIT_FDT_HASH_OFFSET
+	#define CFG_FIT_FDT_HASH_OFFSET 0x18000
+#endif
 
 __weak int spl_board_boot_device(enum boot_device boot_dev_spl)
 {
@@ -184,6 +195,14 @@ u32 spl_boot_device(void)
 #ifdef CONFIG_SPL_USB_GADGET
 int g_dnl_bind_fixup(struct usb_device_descriptor *dev, const char *name)
 {
+#ifdef CONFIG_ENV_VARS_UBOOT_RUNTIME_CONFIG
+	struct tag_serialnr serialnr;
+	char serial_string[0x21] = {0};
+
+	get_board_serial(&serialnr);
+	snprintf(serial_string, sizeof(serial_string), "%08x%08x", serialnr.high, serialnr.low);
+	g_dnl_set_serialnumber(serial_string);
+#endif
 	put_unaligned(0x0151, &dev->idProduct);
 
 	return 0;
@@ -198,7 +217,7 @@ int g_dnl_get_board_bcd_device_number(int gcnum)
 
 #if defined(CONFIG_SPL_MMC)
 /* called from spl_mmc to see type of boot mode for storage (RAW or FAT) */
-u32 spl_mmc_boot_mode(const u32 boot_device)
+u32 spl_mmc_boot_mode(struct mmc *mmc, const u32 boot_device)
 {
 #if defined(CONFIG_MX7) || defined(CONFIG_IMX8M) || defined(CONFIG_IMX8)
 	switch (get_boot_device()) {
@@ -314,11 +333,13 @@ ulong board_spl_fit_size_align(ulong size)
 	 */
 
 	size = ALIGN(size, 0x1000);
-	size += CONFIG_CSF_SIZE;
+	size += 2 * CONFIG_CSF_SIZE;
+
+	if (size > CONFIG_SYS_BOOTM_LEN)
+		panic("spl: ERROR: image too big\n");
 
 	return size;
 }
-
 #endif
 
 void *board_spl_fit_buffer_addr(ulong fit_size, int sectors, int bl_len)
@@ -332,20 +353,45 @@ void *board_spl_fit_buffer_addr(ulong fit_size, int sectors, int bl_len)
 	if (bl_len < 512)
 		bl_len = 512;
 
-	return  (void *)((CONFIG_SYS_TEXT_BASE - fit_size - bl_len -
+	return  (void *)((CONFIG_TEXT_BASE - fit_size - bl_len -
 			align_len) & ~align_len);
 }
 #endif
 
-#if defined(CONFIG_MX6) && defined(CONFIG_SPL_OS_BOOT)
-int dram_init_banksize(void)
+#if IS_ENABLED(CONFIG_SPL_LOAD_FIT)
+static int spl_verify_fit_hash(const void *fit)
 {
-	gd->bd->bi_dram[0].start = CONFIG_SYS_SDRAM_BASE;
-	gd->bd->bi_dram[0].size = imx_ddr_size();
+	unsigned long size;
+	u8 value[SHA256_SUM_LEN];
+	int value_len;
+	ulong fit_hash;
+
+#if CONFIG_IS_ENABLED(OF_CONTROL)
+	if (gd->fdt_blob && !fdt_check_header(gd->fdt_blob)) {
+		fit_hash = roundup((unsigned long)&_end +
+				     fdt_totalsize(gd->fdt_blob), 4) + CFG_FIT_FDT_HASH_OFFSET;
+	}
+#else
+	fit_hash = (unsigned long)&_end + CFG_FIT_FDT_HASH_OFFSET;
+#endif
+
+	size = fdt_totalsize(fit);
+
+	if (calculate_hash(fit, size, "sha256", value, &value_len)) {
+		printf("Unsupported hash algorithm\n");
+		return -1;
+	}
+
+	if (value_len != SHA256_SUM_LEN) {
+		printf("Bad hash value len\n");
+		return -1;
+	} else if (memcmp(value, (const void *)fit_hash, value_len) != 0) {
+		printf("Bad hash value\n");
+		return -1;
+	}
 
 	return 0;
 }
-#endif
 
 /*
  * read the address where the IVT header must sit
@@ -360,6 +406,30 @@ void *spl_load_simple_fit_fix_load(const void *fit)
 	unsigned long offset;
 	unsigned long size;
 	u8 *tmp = (u8 *)fit;
+
+	if (IS_ENABLED(CONFIG_IMX_HAB)) {
+		if (IS_ENABLED(CONFIG_IMX_SPL_FIT_FDT_SIGNATURE)) {
+			u32 offset = ALIGN(fdt_totalsize(fit), 0x1000);
+
+			if (imx_hab_authenticate_image((uintptr_t)fit,
+						       offset + 2 * CSF_PAD_SIZE,
+						       offset + CSF_PAD_SIZE)) {
+#ifdef CONFIG_ANDROID_SUPPORT
+				printf("spl: ERROR:  FIT FDT authentication unsuccessful\n");
+				return NULL;
+#else
+				panic("spl: ERROR:  FIT FDT authentication unsuccessful\n");
+#endif
+			}
+		} else {
+			int ret = spl_verify_fit_hash(fit);
+
+			if (ret && imx_hab_is_enabled())
+				panic("spl: ERROR:  FIT hash verify unsuccessful\n");
+
+			debug("spl_verify_fit_hash %d\n", ret);
+		}
+	}
 
 	offset = ALIGN(fdt_totalsize(fit), 0x1000);
 	size = ALIGN(fdt_totalsize(fit), 4);
@@ -379,6 +449,7 @@ void *spl_load_simple_fit_fix_load(const void *fit)
 
 	return (void *)new;
 }
+#endif
 
 #if defined(CONFIG_IMX8MP) || defined(CONFIG_IMX8MN)
 int board_handle_rdc_config(void *fdt_addr, const char *config_name, void *dst_addr)
@@ -433,31 +504,99 @@ exit:
 }
 #endif
 
-void board_spl_fit_post_load(const void *fit, struct spl_image_info *spl_image)
+#ifdef CONFIG_IMX_TRUSTY_OS
+#define TEE_DEST_SIZE     0x04000000
+#define TEE_SUBNODE_NAME "tee-1"
+#define TEE_RELOAD_OFFSET 0x00800000
+#define LZ4_MAGIC_NUM     0x184D2204
+#endif
+
+int board_spl_fit_post_load(const void *fit, struct spl_image_info *spl_image)
 {
-	if (IS_ENABLED(CONFIG_IMX_HAB) && !(spl_image->flags & SPL_FIT_BYPASS_POST_LOAD)) {
+#ifdef CONFIG_IMX_TRUSTY_OS
+	int tee_node;
+	ulong load_addr;
+	int size;
+	void *offset_addr;
+	size_t dest_size;
+	int ret;
+#endif
+
+	if (IS_ENABLED(CONFIG_IMX_HAB)) {
 		u32 offset = ALIGN(fdt_totalsize(fit), 0x1000);
 
 		if (imx_hab_authenticate_image((uintptr_t)fit,
 					       offset + IVT_SIZE + CSF_PAD_SIZE,
 					       offset)) {
+#ifdef CONFIG_ANDROID_SUPPORT
+			printf("spl: ERROR:  image authentication unsuccessful\n");
+			return -1;
+#else
 			panic("spl: ERROR:  image authentication unsuccessful\n");
+#endif
 		}
 	}
 #if defined(CONFIG_IMX8MP) || defined(CONFIG_IMX8MN)
 #define MCU_RDC_MAGIC "mcu_rdc"
-	if (!(spl_image->flags & SPL_FIT_BYPASS_POST_LOAD)) {
-		memcpy((void *)CONFIG_IMX8M_MCU_RDC_START_CONFIG_ADDR, MCU_RDC_MAGIC, ALIGN(strlen(MCU_RDC_MAGIC), 4));
-		memcpy((void *)CONFIG_IMX8M_MCU_RDC_STOP_CONFIG_ADDR, MCU_RDC_MAGIC, ALIGN(strlen(MCU_RDC_MAGIC), 4));
-		board_handle_rdc_config(spl_image->fdt_addr, "start-config",
-					(void *)(CONFIG_IMX8M_MCU_RDC_START_CONFIG_ADDR + ALIGN(strlen(MCU_RDC_MAGIC), 4)));
-		board_handle_rdc_config(spl_image->fdt_addr, "stop-config",
-					(void *)(CONFIG_IMX8M_MCU_RDC_STOP_CONFIG_ADDR + ALIGN(strlen(MCU_RDC_MAGIC), 4)));
-	}
+	memcpy((void *)CONFIG_IMX8M_MCU_RDC_START_CONFIG_ADDR, MCU_RDC_MAGIC, ALIGN(strlen(MCU_RDC_MAGIC), 4));
+	memcpy((void *)CONFIG_IMX8M_MCU_RDC_STOP_CONFIG_ADDR, MCU_RDC_MAGIC, ALIGN(strlen(MCU_RDC_MAGIC), 4));
+	board_handle_rdc_config(spl_image->fdt_addr, "start-config",
+				(void *)(CONFIG_IMX8M_MCU_RDC_START_CONFIG_ADDR + ALIGN(strlen(MCU_RDC_MAGIC), 4)));
+	board_handle_rdc_config(spl_image->fdt_addr, "stop-config",
+				(void *)(CONFIG_IMX8M_MCU_RDC_STOP_CONFIG_ADDR + ALIGN(strlen(MCU_RDC_MAGIC), 4)));
 #endif
-}
 
 #ifdef CONFIG_IMX_TRUSTY_OS
+        tee_node = fit_image_get_node(fit, TEE_SUBNODE_NAME);
+        if (tee_node < 0) {
+                printf ("Can't find FIT subimage\n");
+                return -1;
+        }
+
+        ret = fit_image_get_load(fit, tee_node, &load_addr);
+        if (ret) {
+                printf("Can't get image load address!\n");
+                return -1;
+        }
+
+        if (*(u32*)load_addr == LZ4_MAGIC_NUM) {
+                offset_addr = (void *)load_addr + TEE_RELOAD_OFFSET;
+
+                ret = fit_image_get_data_size(fit, tee_node, &size);
+                if (ret < 0) {
+                        printf("Can't get size of image (err=%d)\n", ret);
+                        return -1;
+                }
+
+                memcpy(offset_addr,(void *)load_addr, size);
+
+                dest_size = TEE_DEST_SIZE;
+                ret = ulz4fn((void *)offset_addr, size, (void *)load_addr, &dest_size);
+                if (ret) {
+                        printf("Uncompressed err :%d\n", ret);
+                        return -1;
+                }
+#if CONFIG_IS_ENABLED(LOAD_FIT) || CONFIG_IS_ENABLED(LOAD_FIT_FULL)
+                /* Modify the image size had recorded in FDT */
+                fdt_setprop_u32(spl_image->fdt_addr, tee_node, "size", (u32)dest_size);
+#endif
+        }
+#endif
+
+	return 0;
+}
+
+#if defined(CONFIG_MX6) && defined(CONFIG_SPL_OS_BOOT)
+int dram_init_banksize(void)
+{
+	gd->bd->bi_dram[0].start = CFG_SYS_SDRAM_BASE;
+	gd->bd->bi_dram[0].size = imx_ddr_size();
+
+	return 0;
+}
+#endif
+
+#if defined(CONFIG_IMX_TRUSTY_OS) && !defined(CONFIG_IMX_MATTER_TRUSTY)
 int check_rollback_index(struct spl_image_info *spl_image, struct mmc *mmc);
 int check_rpmb_blob(struct mmc *mmc);
 

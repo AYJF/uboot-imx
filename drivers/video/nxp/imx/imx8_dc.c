@@ -10,7 +10,6 @@
 #include <linux/err.h>
 #include <malloc.h>
 #include <video.h>
-#include <video_fb.h>
 #include <display.h>
 
 #include <asm/cache.h>
@@ -23,7 +22,7 @@
 #include <video_link.h>
 #include <clk.h>
 
-#include <asm/arch/sci/sci.h>
+#include <firmware/imx/sci/sci.h>
 #include <imxdpuv1.h>
 #include <imxdpuv1_registers.h>
 #include <imxdpuv1_events.h>

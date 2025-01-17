@@ -28,7 +28,6 @@
 #include "compiler.h"
 
 #ifndef USE_HOSTCC
-#include <common.h>
 #include <watchdog.h>
 #endif /* USE_HOSTCC */
 #include <u-boot/md5.h>
@@ -304,7 +303,7 @@ md5_wd(const unsigned char *input, unsigned int len, unsigned char output[16],
 			chunk = chunk_sz;
 		MD5Update(&context, curr, chunk);
 		curr += chunk;
-		WATCHDOG_RESET ();
+		schedule();
 	}
 #else
 	MD5Update(&context, input, len);

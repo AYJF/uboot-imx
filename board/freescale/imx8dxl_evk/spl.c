@@ -17,6 +17,7 @@
 #include <dm/device-internal.h>
 #include <dm/lists.h>
 #include <bootm.h>
+#include <asm/sections.h>
 #include <asm/mach-imx/boot_mode.h>
 
 DECLARE_GLOBAL_DATA_PTR;
@@ -42,7 +43,7 @@ int spl_board_boot_device(enum boot_device boot_dev_spl)
 void spl_board_init(void)
 {
 	struct udevice *dev;
-	
+
 	uclass_get_device_by_driver(UCLASS_MISC, DM_DRIVER_GET(imx8_scu), &dev);
 
 	uclass_find_first_device(UCLASS_MISC, &dev);

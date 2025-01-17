@@ -12,13 +12,19 @@
 #endif
 
 #define VAR_SOM_EEPROM_MAGIC	0x4D58 /* == HEX("MX") */
+#define VAR_DART_EEPROM_MAGIC	0x4454 /* == HEX("DT") */
 
 #define VAR_SOM_EEPROM_I2C_ADDR	0x52
 
 /* Optional SOM features */
-#define VAR_EEPROM_F_WIFI		(1 << 0)
-#define VAR_EEPROM_F_ETH		(1 << 1)
-#define VAR_EEPROM_F_AUDIO		(1 << 2)
+#define VAR_EEPROM_F_WIFI		BIT(0)
+#define VAR_EEPROM_F_ETH		BIT(1)
+#define VAR_EEPROM_F_AUDIO		BIT(2)
+#define VAR_EEPROM_F_WBE		BIT(3)
+
+/* Helpers to extract the major and minor versions from somrev */
+#define SOMREV_MINOR(val) ((val) & GENMASK(4, 0))
+#define SOMREV_MAJOR(val) (1 + (((val) >> 5) & GENMASK(2, 0)))
 
 /* SOM storage types */
 enum som_storage {
@@ -28,7 +34,8 @@ enum som_storage {
 };
 
 /* Number of DRAM adjustment tables */
-#define DRAM_TABLE_NUM 7
+#define DRAM_TABLE_NUM 13
+#define NUM_FSPS 3
 
 struct __attribute__((packed)) var_eeprom
 {
@@ -45,6 +52,8 @@ struct __attribute__((packed)) var_eeprom
 	u32 ddr_crc32;			/* 44-0x2c - CRC32 of DDR DATAi */
 	u16 ddr_vic;			/* 48-0x30 - DDR VIC PN         */
 	u16 off[DRAM_TABLE_NUM+1];	/* 50-0x32 - DRAM table offsets */
+	u16 fsp_drate[NUM_FSPS];	/* 78-0x4e - ddr_dram_fsp_msg[i].drate */
+	u8 fsp_bypass;			/* 84-0x54 - Bitfield for ddr_dram_fsp_cfg[i].bypass */
 };
 
 #define VAR_EEPROM_DATA ((struct var_eeprom *)VAR_EEPROM_DRAM_START)
@@ -62,12 +71,11 @@ struct __attribute__((packed)) var_carrier_eeprom
 
 static inline int var_eeprom_is_valid(struct var_eeprom *ep)
 {
-	if (htons(ep->magic) != VAR_SOM_EEPROM_MAGIC) {
-		debug("Invalid EEPROM magic 0x%hx, expected 0x%hx\n",
-			htons(ep->magic), VAR_SOM_EEPROM_MAGIC);
+	if ((htons(ep->magic) != VAR_SOM_EEPROM_MAGIC) &&
+	    (htons(ep->magic) != VAR_DART_EEPROM_MAGIC)) {
+		printf("Invalid EEPROM magic 0x%hx\n", htons(ep->magic));
 		return 0;
 	}
-
 	return 1;
 }
 
@@ -75,6 +83,10 @@ int var_eeprom_read_header(struct var_eeprom *e);
 int var_eeprom_get_dram_size(struct var_eeprom *e, phys_size_t *size);
 int var_eeprom_get_mac(struct var_eeprom *e, u8 *mac);
 void var_eeprom_print_prod_info(struct var_eeprom *e);
+
+#if defined(CONFIG_SPL_BUILD)
+void var_eeprom_adjust_dram(struct var_eeprom *e, struct dram_timing_info *d);
+#endif
 
 int var_carrier_eeprom_read(const char * bus_name, int addr, struct var_carrier_eeprom *ep);
 int var_carrier_eeprom_is_valid(struct var_carrier_eeprom *ep);
